@@ -1,0 +1,14 @@
+{
+  "name": "liferpg-backend",
+  "version": "0.1.0",
+  "description": "API REST de Life-RPG (Node.js + Express, arquitectura modular limpia)",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
