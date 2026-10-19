@@ -51,6 +51,7 @@ Las dependencias apuntan hacia adentro: `interfaces → application → domain �
 ## Configuración
 
 ```bash
+npm install -g pnpm
 cp .env.example .env
-npm install
+pnpm install
 ```

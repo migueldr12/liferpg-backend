@@ -1,6 +1,7 @@
 {
   "name": "liferpg-backend",
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
   "description": "API REST de Life-RPG (Node.js + Express, arquitectura modular limpia)",
   "main": "src/server.js",
   "type": "commonjs",
