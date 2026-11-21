@@ -1,7 +1,7 @@
 # Life-RPG · Backend
 
 API REST en Node.js con Express. Arquitectura **por módulos** con **arquitectura limpia**.
-Por ahora solo hay estructura (carpetas con `.gitkeep`), sin lógica.
+La persistencia usa Prisma 6 con MongoDB Atlas. El esquema ya cubre los modelos de M00–M15; el frontend todavía usa datos de demostración. Consulta [docs/database.md](docs/database.md) para el mapa de colecciones, las reglas de integridad y la política de fechas UTC.
 
 ## Capas de cada módulo
 
@@ -13,8 +13,8 @@ Las dependencias apuntan hacia adentro: `interfaces → application → domain �
 | `domain/repositories` | Contratos (interfaces) de los repositorios |
 | `application/services` | Casos de uso: un servicio por RDF del Excel |
 | `application/dtos` | Datos de entrada y salida de los servicios |
-| `infrastructure/repositories` | Implementación concreta de los contratos (SQL) |
-| `infrastructure/mappers` | Conversión fila de BD ↔ entidad |
+| `infrastructure/repositories` | Implementación concreta de los contratos con Prisma |
+| `infrastructure/mappers` | Conversión documento de BD ↔ entidad |
 | `interfaces/controllers` | Traducen `req`/`res` a llamadas a servicios |
 | `interfaces/routes` | Router de Express del módulo |
 | `interfaces/validators` | Validación de body, params y query |
@@ -54,4 +54,19 @@ Las dependencias apuntan hacia adentro: `interfaces → application → domain �
 npm install -g pnpm
 cp .env.example .env
 pnpm install
+pnpm db:validate
+pnpm db:generate
+pnpm db:check
 ```
+
+Antes de validar, configura `DATABASE_URL` en el entorno o en `.env`. Para desarrollo también se admite `MONGODB_URI` en `atlas-credentials.env`, dentro de este backend. Si la URI no especifica una base, se usa `liferpg`. Ambos archivos locales están excluidos de Git. Atlas requiere acceso desde la IP del servidor.
+
+`db:check` verifica conexión, colecciones e índices esperados sin modificar datos. Para inicializar una base o aplicar cambios de colecciones e índices, revisa el destino y ejecuta `pnpm db:push`. MongoDB no usa Prisma Migrate: si cambias el formato de documentos existentes, planifica su actualización por separado.
+
+Todas las fechas se almacenan en UTC. El cliente calcula el día local; los campos `dayStart` representan la medianoche UTC del registro.
+
+## Cómo extender la persistencia
+
+1. Define el modelo y sus índices en `prisma/schema.prisma`. Usa `@@map` para mantener estable el nombre físico de la colección.
+2. Valida y regenera el cliente. Crea el repositorio en `src/modules/<modulo>/infrastructure/repositories/`, reutilizando el cliente de `src/shared/infrastructure/database/prisma.js`.
+3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.

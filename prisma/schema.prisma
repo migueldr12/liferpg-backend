@@ -1,0 +1,908 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Todas las fechas se guardan en UTC. El cliente calcula el día local.
+// Las reglas ya aplicadas (recompensas, penalizaciones, economía) se copian en
+// el registro histórico para que un cambio futuro no reescriba el pasado.
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ClientType {
+  APP
+  PWA
+  ADMIN
+}
+
+enum AreaType {
+  CULTURE
+  PHYSICAL
+  FOCUS
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  EPIC
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+}
+
+enum PenaltyType {
+  HP
+  STREAK
+  POINTS
+}
+
+enum MissionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum FocusStatus {
+  RUNNING
+  COMPLETED
+  ABANDONED
+}
+
+enum CategoryType {
+  HABIT
+  MISSION
+  STORE
+  STICKER
+}
+
+enum PointType {
+  CULTURE
+  PHYSICAL
+  FOCUS
+}
+
+enum SlotType {
+  HEAD
+  FACE
+  BODY
+  BACKGROUND
+}
+
+enum InventorySource {
+  PURCHASE
+  GIFT
+  REWARD
+  ADMIN
+}
+
+enum InventoryMovementType {
+  PURCHASE
+  GIFT_OUT
+  GIFT_IN
+  REDEEM
+  ADJUSTMENT
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+  ENDED
+}
+
+enum GiftRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum GiftTransferStatus {
+  SENT
+  DELIVERED
+  SEEN
+}
+
+enum AchievementConditionType {
+  CHECKINS
+  STREAK
+  MISSIONS
+  FOCUS_MINUTES
+  PURCHASES
+  MOOD_LOGS
+}
+
+enum ChallengeMetric {
+  CHECKINS
+  MISSIONS
+  FOCUS_MINUTES
+  XP
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ParticipantStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+}
+
+enum AlertKind {
+  INACTIVITY
+  ENCOURAGEMENT
+}
+
+enum CampaignStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum BackupScope {
+  ALL
+  PROFILE
+}
+
+enum BackupFormat {
+  JSON
+  CSV
+}
+
+// ───────────── M00 · Usuarios y autenticación ─────────────
+
+model User {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  email           String     @unique
+  passwordHash    String
+  displayName     String
+  role            Role       @default(PLAYER)
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  profile                  PlayerProfile?
+  devices                  Device[]
+  sessions                 Session[]
+  passwordResets           PasswordReset[]
+  outfits                  Outfit[]
+  habits                   Habit[]
+  habitCheckIns            HabitCheckIn[]
+  missions                 Mission[]
+  focusSessions            FocusSession[]
+  activityNotes            ActivityNote[]
+  dailyClosures            DailyClosure[]
+  moodLogs                 MoodLog[]
+  journalEntries           JournalEntry[]
+  friendCodes              FriendCode[]
+  friendshipsStarted       Friendship[]            @relation("FriendshipRequester")
+  friendshipsReceived      Friendship[]            @relation("FriendshipAddressee")
+  giftsSent                GiftTransfer[]          @relation("GiftSender")
+  giftsReceived            GiftTransfer[]          @relation("GiftRecipient")
+  giftRequestsMade         GiftRequest[]           @relation("GiftRequester")
+  giftRequestsReceived     GiftRequest[]           @relation("GiftOwner")
+  inventoryEntries         InventoryEntry[]
+  inventoryMovements       InventoryMovement[]
+  achievements             UserAchievement[]
+  challengesCreated        GroupChallenge[]
+  challengeParticipations  ChallengeParticipant[]
+  challengeContributions   ChallengeContribution[]
+  inactivityAlerts         InactivityAlert[]
+  stickersSent             StickerMessage[]        @relation("StickerSender")
+  stickersReceived         StickerMessage[]        @relation("StickerRecipient")
+  requestLogs              RequestLog[]
+  backupsCreated           BackupRecord[]          @relation("BackupCreatedBy")
+  backupsOwned             BackupRecord[]          @relation("BackupProfile")
+  purgeRuns                PurgeRun[]
+  catalogItemsOwned        CatalogItem[]           @relation("CatalogItemOwner")
+  iconAssetsUploaded       IconAsset[]
+  economyVersionsPublished EconomyVersion[]
+  pushCampaignsSent        PushCampaign[]          @relation("PushSender")
+  pushCampaignsReceived    PushCampaign[]          @relation("PushTarget")
+
+  @@map("users")
+}
+
+model Device {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  fcmToken   String   @unique
+  platform   String
+  lastSeenAt DateTime @default(now())
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  sessions Session[]
+
+  @@index([userId, active])
+  @@map("devices")
+}
+
+model Session {
+  id               String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String     @db.ObjectId
+  deviceId         String?    @db.ObjectId
+  refreshTokenHash String     @unique
+  clientType       ClientType @default(APP)
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+
+  user   User    @relation(fields: [userId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model PasswordReset {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@map("password_resets")
+}
+
+// ───────────── M01 · Perfil y mascota ─────────────
+
+model PlayerProfile {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String   @unique @db.ObjectId
+  alias                String
+  mascotName           String
+  mascotColor          String
+  avatarUrl            String?
+  darkMode             Boolean  @default(false)
+  level                Int      @default(1)
+  xp                   Int      @default(0)
+  hp                   Int      @default(100)
+  culturePoints        Int      @default(0)
+  physicalPoints       Int      @default(0)
+  focusPoints          Int      @default(0)
+  currentStreak        Int      @default(0)
+  bestStreak           Int      @default(0)
+  moodReminderEnabled  Boolean  @default(true)
+  moodReminderTime     String   @default("20:00")
+  moodVisibleToViewers Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("player_profiles")
+}
+
+model Outfit {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  name      String
+  equipped  Json
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isActive])
+  @@map("outfits")
+}
+
+// ───────────── M02 · Hábitos, check-ins y rachas ─────────────
+
+model Habit {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String         @db.ObjectId
+  categoryId   String?        @db.ObjectId
+  name         String
+  area         AreaType
+  difficulty   Difficulty
+  frequency    HabitFrequency @default(DAILY)
+  focusMinutes Int?
+  penaltyType  PenaltyType    @default(HP)
+  penaltyValue Int            @default(10)
+  active       Boolean        @default(true)
+  startsOn     DateTime       @default(now())
+  archivedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id])
+  category      CatalogCategory? @relation("HabitCategory", fields: [categoryId], references: [id])
+  checkIns      HabitCheckIn[]
+  focusSessions FocusSession[]
+
+  @@index([userId, active])
+  @@index([categoryId])
+  @@map("habits")
+}
+
+model HabitCheckIn {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String    @db.ObjectId
+  habitId        String    @db.ObjectId
+  periodStart    DateTime
+  periodEnd      DateTime
+  completedAt    DateTime  @default(now())
+  xpAwarded      Int       @default(0)
+  pointsAwarded  Int       @default(0)
+  penaltyApplied Int       @default(0)
+  revertedAt     DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  habit Habit @relation(fields: [habitId], references: [id])
+
+  @@unique([habitId, periodStart])
+  @@index([userId, periodStart])
+  @@map("habit_check_ins")
+}
+
+// ───────────── M03 · Misiones y enfoque ─────────────
+
+model Mission {
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String        @db.ObjectId
+  categoryId       String?       @db.ObjectId
+  title            String
+  area             AreaType
+  estimatedMinutes Int
+  status           MissionStatus @default(PENDING)
+  xpAwarded        Int           @default(0)
+  pointsAwarded    Int           @default(0)
+  completedAt      DateTime?
+  failedAt         DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id])
+  category      CatalogCategory? @relation("MissionCategory", fields: [categoryId], references: [id])
+  focusSessions FocusSession[]
+
+  @@index([userId, status])
+  @@index([categoryId])
+  @@map("missions")
+}
+
+model FocusSession {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String      @db.ObjectId
+  habitId        String?     @db.ObjectId
+  missionId      String?     @db.ObjectId
+  plannedMinutes Int
+  status         FocusStatus @default(RUNNING)
+  startedAt      DateTime    @default(now())
+  endedAt        DateTime?
+  xpAwarded      Int         @default(0)
+  pointsAwarded  Int         @default(0)
+  abandonReason  String?
+
+  user    User     @relation(fields: [userId], references: [id])
+  habit   Habit?   @relation(fields: [habitId], references: [id])
+  mission Mission? @relation(fields: [missionId], references: [id])
+
+  @@index([userId, startedAt])
+  @@index([habitId])
+  @@index([missionId])
+  @@map("focus_sessions")
+}
+
+// ───────────── M04 · Tienda e inventario ─────────────
+
+model InventoryEntry {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String          @db.ObjectId
+  catalogItemId String          @db.ObjectId
+  quantity      Int             @default(1)
+  equipped      Boolean         @default(false)
+  source        InventorySource @default(PURCHASE)
+  acquiredAt    DateTime        @default(now())
+  consumedAt    DateTime?
+  updatedAt     DateTime        @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id])
+  catalogItem CatalogItem         @relation(fields: [catalogItemId], references: [id])
+  movements   InventoryMovement[]
+
+  @@unique([userId, catalogItemId])
+  @@index([userId, equipped])
+  @@map("inventory_entries")
+}
+
+model InventoryMovement {
+  id               String                @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String                @db.ObjectId
+  catalogItemId    String                @db.ObjectId
+  inventoryEntryId String?               @db.ObjectId
+  type             InventoryMovementType
+  quantity         Int                   @default(1)
+  referenceType    String?
+  referenceId      String?
+  note             String?
+  createdAt        DateTime              @default(now())
+
+  user           User            @relation(fields: [userId], references: [id])
+  catalogItem    CatalogItem     @relation(fields: [catalogItemId], references: [id])
+  inventoryEntry InventoryEntry? @relation(fields: [inventoryEntryId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([catalogItemId])
+  @@map("inventory_movements")
+}
+
+// ───────────── M05 · Logros ─────────────
+
+model Achievement {
+  id            String                   @id @default(auto()) @map("_id") @db.ObjectId
+  code          String                   @unique
+  name          String
+  description   String
+  conditionType AchievementConditionType
+  threshold     Int
+  area          AreaType?
+  rewardXp      Int                      @default(0)
+  rewardPoints  Int                      @default(0)
+  active        Boolean                  @default(true)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId
+  achievementId String    @db.ObjectId
+  progress      Int       @default(0)
+  unlockedAt    DateTime?
+  claimedAt     DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt])
+  @@map("user_achievements")
+}
+
+// ───────────── M06 · Ánimo y diario personal ─────────────
+
+model MoodLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  dayStart  DateTime
+  mood      Int
+  energy    Int
+  factors   String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  journalEntry JournalEntry?
+
+  @@unique([userId, dayStart])
+  @@index([userId, createdAt])
+  @@map("mood_logs")
+}
+
+model JournalEntry {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  moodLogId String?  @unique @db.ObjectId
+  text      String
+  shared    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+  moodLog MoodLog? @relation(fields: [moodLogId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("journal_entries")
+}
+
+// ───────────── M07 · Amigos y códigos ─────────────
+
+model Friendship {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  requesterId String           @db.ObjectId
+  addresseeId String           @db.ObjectId
+  pairKey     String           @unique
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+  endedAt     DateTime?
+
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id])
+  addressee User @relation("FriendshipAddressee", fields: [addresseeId], references: [id])
+
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@map("friendships")
+}
+
+model FriendCode {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  code      String    @unique
+  maxUses   Int       @default(1)
+  uses      Int       @default(0)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, revokedAt])
+  @@map("friend_codes")
+}
+
+// ───────────── M08 · Botín ─────────────
+
+model GiftRequest {
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  requesterId   String            @db.ObjectId
+  ownerId       String            @db.ObjectId
+  catalogItemId String            @db.ObjectId
+  status        GiftRequestStatus @default(PENDING)
+  message       String?
+  createdAt     DateTime          @default(now())
+  respondedAt   DateTime?
+
+  requester   User          @relation("GiftRequester", fields: [requesterId], references: [id])
+  owner       User          @relation("GiftOwner", fields: [ownerId], references: [id])
+  catalogItem CatalogItem   @relation(fields: [catalogItemId], references: [id])
+  transfer    GiftTransfer?
+
+  @@index([ownerId, status])
+  @@index([requesterId, status])
+  @@map("gift_requests")
+}
+
+model GiftTransfer {
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  senderId      String             @db.ObjectId
+  recipientId   String             @db.ObjectId
+  catalogItemId String             @db.ObjectId
+  giftRequestId String?            @unique @db.ObjectId
+  status        GiftTransferStatus @default(SENT)
+  message       String?
+  sentAt        DateTime           @default(now())
+  deliveredAt   DateTime?
+  seenAt        DateTime?
+
+  sender      User         @relation("GiftSender", fields: [senderId], references: [id])
+  recipient   User         @relation("GiftRecipient", fields: [recipientId], references: [id])
+  catalogItem CatalogItem  @relation(fields: [catalogItemId], references: [id])
+  giftRequest GiftRequest? @relation(fields: [giftRequestId], references: [id])
+
+  @@index([senderId, sentAt])
+  @@index([recipientId, sentAt])
+  @@map("gift_transfers")
+}
+
+// ───────────── M09 · Diario de aventura ─────────────
+
+model ActivityNote {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  activityType String
+  activityId   String
+  text         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, activityType, activityId])
+  @@index([userId, createdAt])
+  @@map("activity_notes")
+}
+
+// ───────────── M10 · Acompañamiento ─────────────
+
+model InactivityAlert {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId
+  kind          AlertKind @default(INACTIVITY)
+  message       String
+  thresholdDays Int       @default(3)
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("inactivity_alerts")
+}
+
+model StickerMessage {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  senderId      String    @db.ObjectId
+  recipientId   String    @db.ObjectId
+  catalogItemId String    @db.ObjectId
+  message       String?
+  sentAt        DateTime  @default(now())
+  seenAt        DateTime?
+
+  sender      User        @relation("StickerSender", fields: [senderId], references: [id])
+  recipient   User        @relation("StickerRecipient", fields: [recipientId], references: [id])
+  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id])
+
+  @@index([recipientId, seenAt])
+  @@index([senderId, sentAt])
+  @@map("sticker_messages")
+}
+
+// ───────────── M11 · Cierre diario y resumen ─────────────
+
+model DailyClosure {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @db.ObjectId
+  dayStart         DateTime
+  dayEnd           DateTime
+  habitsDue        Int      @default(0)
+  habitsCompleted  Int      @default(0)
+  completionRate   Float    @default(0)
+  pendingCount     Int      @default(0)
+  penaltiesApplied Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, dayStart])
+  @@index([userId, createdAt])
+  @@map("daily_closures")
+}
+
+// ───────────── M12 · Retos de grupo ─────────────
+
+model GroupChallenge {
+  id           String          @id @default(auto()) @map("_id") @db.ObjectId
+  creatorId    String          @db.ObjectId
+  title        String
+  description  String?
+  area         AreaType?
+  metric       ChallengeMetric
+  targetValue  Int
+  currentValue Int             @default(0)
+  deadline     DateTime
+  status       ChallengeStatus @default(ACTIVE)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  creator       User                    @relation(fields: [creatorId], references: [id])
+  participants  ChallengeParticipant[]
+  contributions ChallengeContribution[]
+
+  @@index([status, deadline])
+  @@map("group_challenges")
+}
+
+model ChallengeParticipant {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  challengeId  String            @db.ObjectId
+  userId       String            @db.ObjectId
+  status       ParticipantStatus @default(INVITED)
+  contribution Int               @default(0)
+  joinedAt     DateTime?
+  createdAt    DateTime          @default(now())
+
+  challenge GroupChallenge @relation(fields: [challengeId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@unique([challengeId, userId])
+  @@map("challenge_participants")
+}
+
+model ChallengeContribution {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  challengeId  String   @db.ObjectId
+  userId       String   @db.ObjectId
+  activityType String
+  activityId   String
+  value        Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  challenge GroupChallenge @relation(fields: [challengeId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@unique([challengeId, activityType, activityId])
+  @@index([challengeId, userId])
+  @@map("challenge_contributions")
+}
+
+// ───────────── M13 · Host y sincronización ─────────────
+
+model RequestLog {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String?     @db.ObjectId
+  method     String
+  path       String
+  statusCode Int
+  durationMs Int
+  clientType ClientType?
+  ip         String?
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([method, statusCode])
+  @@map("request_logs")
+}
+
+// ───────────── M14 · Economía y catálogo ─────────────
+
+model CatalogCategory {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        CategoryType
+  iconAssetId String?      @db.ObjectId
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  iconAsset IconAsset?    @relation("CategoryIcon", fields: [iconAssetId], references: [id])
+  items     CatalogItem[]
+  habits    Habit[]       @relation("HabitCategory")
+  missions  Mission[]     @relation("MissionCategory")
+
+  @@unique([name, type])
+  @@index([type, active])
+  @@map("catalog_categories")
+}
+
+model CatalogItem {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  categoryId  String?    @db.ObjectId
+  iconAssetId String?    @db.ObjectId
+  ownerId     String?    @db.ObjectId
+  name        String
+  description String?
+  group       String
+  icon        String
+  price       Int        @default(0)
+  pointType   PointType?
+  slot        SlotType?
+  minLevel    Int?
+  giftable    Boolean    @default(false)
+  custom      Boolean    @default(false)
+  tags        String[]   @default([])
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  category      CatalogCategory?    @relation(fields: [categoryId], references: [id])
+  iconAsset     IconAsset?          @relation("ItemIcon", fields: [iconAssetId], references: [id])
+  owner         User?               @relation("CatalogItemOwner", fields: [ownerId], references: [id])
+  inventory     InventoryEntry[]
+  movements     InventoryMovement[]
+  giftRequests  GiftRequest[]
+  giftTransfers GiftTransfer[]
+  stickers      StickerMessage[]
+
+  @@index([group, active])
+  @@index([categoryId])
+  @@index([ownerId])
+  @@map("catalog_items")
+}
+
+model EconomyVersion {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  version          Int      @unique
+  base             Float
+  exponent         Float
+  difficultyPoints Json
+  rewardPriceMin   Int
+  rewardPriceMax   Int
+  publishedById    String?  @db.ObjectId
+  publishedAt      DateTime @default(now())
+
+  publishedBy User? @relation(fields: [publishedById], references: [id])
+
+  @@index([publishedAt])
+  @@map("economy_versions")
+}
+
+model PushCampaign {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  sentById       String?        @db.ObjectId
+  targetUserId   String?        @db.ObjectId
+  title          String
+  message        String
+  targetKind     String
+  recipientCount Int            @default(0)
+  status         CampaignStatus @default(QUEUED)
+  deliveredPct   Float?
+  sentAt         DateTime?
+  createdAt      DateTime       @default(now())
+
+  sentBy     User? @relation("PushSender", fields: [sentById], references: [id])
+  targetUser User? @relation("PushTarget", fields: [targetUserId], references: [id])
+
+  @@index([createdAt])
+  @@map("push_campaigns")
+}
+
+model IconAsset {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  key          String   @unique
+  url          String
+  mimeType     String
+  uploadedById String?  @db.ObjectId
+  createdAt    DateTime @default(now())
+
+  uploadedBy User?             @relation(fields: [uploadedById], references: [id])
+  categories CatalogCategory[] @relation("CategoryIcon")
+  items      CatalogItem[]     @relation("ItemIcon")
+
+  @@index([uploadedById])
+  @@map("icon_assets")
+}
+
+// ───────────── M15 · Gestión de base de datos ─────────────
+
+model BackupRecord {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  createdById   String       @db.ObjectId
+  profileUserId String?      @db.ObjectId
+  scope         BackupScope
+  format        BackupFormat
+  sections      String[]     @default([])
+  sizeBytes     Int          @default(0)
+  storageKey    String
+  createdAt     DateTime     @default(now())
+
+  createdBy   User  @relation("BackupCreatedBy", fields: [createdById], references: [id])
+  profileUser User? @relation("BackupProfile", fields: [profileUserId], references: [id])
+
+  @@index([createdAt])
+  @@map("backup_records")
+}
+
+model PurgeRun {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdById  String   @db.ObjectId
+  beforeDate   DateTime
+  categories   String[] @default([])
+  deletedCount Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([createdAt])
+  @@map("purge_runs")
+}
