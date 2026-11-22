@@ -7,7 +7,7 @@ const { createHealthRouter } = require('./health');
 function createApiRouter(deps) {
   const router = Router();
 
-  router.use('/health', createHealthRouter(deps));
+  router.use(['/estado', '/health'], createHealthRouter(deps));
 
   return router;
 }
