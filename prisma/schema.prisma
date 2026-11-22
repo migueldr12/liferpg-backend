@@ -70,11 +70,12 @@ enum MissionValidation {
   MANUAL
 }
 
-// Datos que envía la app desde el smartwatch / Health Connect (M03 · RDF043)
+// Datos que envía la app desde el smartwatch / Health Connect (M03 · RDF043).
+// Mismos nombres que el modelo WearableActivity de la app móvil.
 type WearableActivity {
-  steps         Int
-  distanceKm    Float
-  activeMinutes Int
+  steps      Int
+  distanceKm Float
+  activeMin  Int
 }
 
 enum CategoryType {

@@ -19,11 +19,11 @@ describe('M03 · reglas del dominio', () => {
   });
 
   test('cómo se valida al terminar (RDF041 / RDF043)', () => {
-    const watch = { steps: 6840, distanceKm: 5.2, activeMinutes: 40 };
+    const watch = { steps: 6840, distanceKm: 5.2, activeMin: 40 };
     assert.equal(validationOnFinish('enfoque'), VALIDATION.LOCK);
     assert.equal(validationOnFinish('fisico', watch), VALIDATION.WEARABLE);
     assert.equal(validationOnFinish('fisico'), VALIDATION.MANUAL);
-    assert.equal(validationOnFinish('fisico', { steps: 0, distanceKm: 0, activeMinutes: 0 }), VALIDATION.MANUAL);
+    assert.equal(validationOnFinish('fisico', { steps: 0, distanceKm: 0, activeMin: 0 }), VALIDATION.MANUAL);
     assert.equal(validationOnFinish('cultura', watch), VALIDATION.MANUAL);
   });
 

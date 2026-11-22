@@ -47,9 +47,12 @@ function parseCreateMission(body = {}) {
   return { title, type, durationMin };
 }
 
-// GET /misiones?tipo=
+// GET /misiones?estado=activa&tipo=  (estado es opcional; las terminadas van en /historial)
 function parseActiveQuery(query = {}) {
   const errors = {};
+  if (query.estado !== undefined && query.estado !== MISSION_STATUS.ACTIVE) {
+    errors.estado = 'Aquí solo se consultan las misiones activas; las terminadas están en /misiones/historial.';
+  }
   const type = parseType(query.tipo, errors, { required: false });
   check(errors);
   return { type };
@@ -89,23 +92,24 @@ function parseHistoryQuery(query = {}) {
   return { status, type, from, to, limit };
 }
 
-// POST /misiones/sesiones/:sessionId/rendirse
+// POST /sesiones/:sessionId/fallar
 function parseAbandon(body = {}) {
   const reason = body.reason ?? 'rendicion';
   if (!FAIL_REASONS.includes(reason)) throw validationError({ reason: 'El motivo debe ser rendicion o salio_app.' });
   return { reason };
 }
 
-// POST /misiones/sesiones/:sessionId/finalizar — activity es opcional (RDF043)
+// POST /sesiones/:sessionId/finalizar — el cuerpo es opcional. Cuando la app lea el
+// smartwatch (development build) mandará { activity } con la forma de WearableActivity (RDF043).
 function parseFinish(body = {}) {
-  if (body.activity === undefined || body.activity === null) return {};
+  if (body?.activity === undefined || body.activity === null) return {};
   const a = body.activity;
   const errors = {};
   if (!isInt(a.steps) || a.steps < 0) errors['activity.steps'] = 'Los pasos deben ser un entero mayor o igual a 0.';
   if (typeof a.distanceKm !== 'number' || a.distanceKm < 0) errors['activity.distanceKm'] = 'La distancia debe ser un número mayor o igual a 0.';
-  if (!isInt(a.activeMinutes) || a.activeMinutes < 0) errors['activity.activeMinutes'] = 'Los minutos activos deben ser un entero mayor o igual a 0.';
+  if (!isInt(a.activeMin) || a.activeMin < 0) errors['activity.activeMin'] = 'Los minutos activos deben ser un entero mayor o igual a 0.';
   check(errors);
-  return { activity: { steps: a.steps, distanceKm: a.distanceKm, activeMinutes: a.activeMinutes } };
+  return { activity: { steps: a.steps, distanceKm: a.distanceKm, activeMin: a.activeMin } };
 }
 
 module.exports = {

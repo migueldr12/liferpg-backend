@@ -16,18 +16,19 @@ function toAppError(err) {
   return null;
 }
 
-// Último middleware: responde todos los errores con el mismo formato y nunca
-// expone el detalle interno de un error inesperado. Express lo reconoce como
+// Último middleware: responde todos los errores con el formato del contrato de la app,
+// { "error": "mensaje", "code": "...", "details"?: {...} }, y nunca expone el detalle
+// interno de un error inesperado. La app muestra `error` tal cual. Express lo reconoce como
 // manejador de errores por recibir 4 parámetros, aunque `next` no se use.
 function errorHandler(err, req, res, next) {
   const known = toAppError(err);
   if (!known) {
     console.error(`[${req.method} ${req.originalUrl}]`, err);
-    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado.' } });
+    return res.status(500).json({ error: 'Ocurrió un error inesperado.', code: 'INTERNAL_ERROR' });
   }
-  const body = { code: known.code, message: known.message };
+  const body = { error: known.message, code: known.code };
   if (known.details !== undefined) body.details = known.details;
-  return res.status(known.status).json({ error: body });
+  return res.status(known.status).json(body);
 }
 
 module.exports = { errorHandler };

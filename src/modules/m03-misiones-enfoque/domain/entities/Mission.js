@@ -43,7 +43,7 @@ const locksDevice = (type) => type === 'enfoque';
 
 // Datos del reloj que cuentan como actividad real
 const isValidActivity = (activity) =>
-  !!activity && activity.steps > 0 && activity.activeMinutes > 0 && activity.distanceKm >= 0;
+  !!activity && activity.steps > 0 && activity.activeMin > 0 && activity.distanceKm >= 0;
 
 // Al terminar el temporizador (RDF041): Enfoque se valida con el bloqueo; Física con el
 // smartwatch si llegaron datos; lo demás espera la confirmación manual (RDF043).

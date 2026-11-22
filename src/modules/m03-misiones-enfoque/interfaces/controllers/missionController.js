@@ -9,6 +9,10 @@ function createMissionController(services) {
       res.json(await services.consultarMisionesActivas(req.user.id, v.parseActiveQuery(req.query)));
     }),
 
+    getOne: asyncHandler(async (req, res) => {
+      res.json(await services.consultarMision(req.user.id, v.parseId(req.params.missionId, 'missionId')));
+    }),
+
     // RDF037
     create: asyncHandler(async (req, res) => {
       res.status(201).json(await services.agregarMision(req.user.id, v.parseCreateMission(req.body)));
@@ -30,10 +34,11 @@ function createMissionController(services) {
       res.status(201).json(await services.iniciarSesionEnfoque(req.user.id, missionId));
     }),
 
-    // RDF040
-    abandonSession: asyncHandler(async (req, res) => {
+    // RDF040 · responde 204 sin cuerpo
+    failSession: asyncHandler(async (req, res) => {
       const sessionId = v.parseId(req.params.sessionId, 'sessionId');
-      res.json(await services.rendirseSesion(req.user.id, sessionId, v.parseAbandon(req.body)));
+      await services.rendirseSesion(req.user.id, sessionId, v.parseAbandon(req.body));
+      res.sendStatus(204);
     }),
 
     // RDF041 · RDF042 · RDF043 (smartwatch)
@@ -42,10 +47,14 @@ function createMissionController(services) {
       res.json(await services.finalizarSesionEnfoque(req.user.id, sessionId, v.parseFinish(req.body)));
     }),
 
-    // RDF043 (manual) · RDF042
+    // RDF042
+    sessionOutcome: asyncHandler(async (req, res) => {
+      res.json(await services.consultarResultadoSesion(req.user.id, v.parseId(req.params.sessionId, 'sessionId')));
+    }),
+
+    // RDF043 (manual)
     confirmManual: asyncHandler(async (req, res) => {
-      const missionId = v.parseId(req.params.missionId, 'missionId');
-      res.json(await services.validarMisionFisica(req.user.id, missionId));
+      res.json(await services.validarMisionFisica(req.user.id, v.parseId(req.params.sessionId, 'sessionId')));
     }),
   };
 }

@@ -26,8 +26,8 @@ describe('API base', () => {
     down.server.close();
   });
 
-  test('GET /health responde ok cuando la base contesta', async () => {
-    const res = await fetch(`${ok.url}/health`);
+  test('GET /estado responde ok cuando la base contesta', async () => {
+    const res = await fetch(`${ok.url}/estado`);
     const body = await res.json();
     assert.equal(res.status, 200);
     assert.equal(body.status, 'ok');
@@ -35,20 +35,25 @@ describe('API base', () => {
     assert.equal(typeof body.version, 'string');
   });
 
-  test('GET /health responde 503 cuando la base no contesta', async () => {
-    const res = await fetch(`${down.url}/health`);
+  test('GET /estado responde 503 cuando la base no contesta', async () => {
+    const res = await fetch(`${down.url}/estado`);
     const body = await res.json();
     assert.equal(res.status, 503);
     assert.equal(body.status, 'degraded');
     assert.equal(body.database, 'error');
   });
 
-  test('una ruta inexistente devuelve 404 con el formato de error', async () => {
+  test('/health sigue respondiendo como alias de /estado', async () => {
+    const res = await fetch(`${ok.url}/health`);
+    assert.equal(res.status, 200);
+  });
+
+  test('una ruta inexistente devuelve 404 con el formato del contrato', async () => {
     const res = await fetch(`${ok.url}/no-existe`);
     const body = await res.json();
     assert.equal(res.status, 404);
-    assert.equal(body.error.code, 'NOT_FOUND');
-    assert.match(body.error.message, /GET \/api\/v1\/no-existe/);
+    assert.equal(body.code, 'NOT_FOUND');
+    assert.match(body.error, /GET \/api\/v1\/no-existe/);
   });
 
   test('un cuerpo que no es JSON devuelve 400', async () => {
@@ -59,7 +64,8 @@ describe('API base', () => {
     });
     const body = await res.json();
     assert.equal(res.status, 400);
-    assert.equal(body.error.code, 'BAD_REQUEST');
+    assert.equal(body.code, 'BAD_REQUEST');
+    assert.equal(body.error, 'El cuerpo de la petición no es JSON válido.');
   });
 
   test('el preflight de CORS responde 204', async () => {

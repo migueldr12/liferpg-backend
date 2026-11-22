@@ -73,7 +73,7 @@ pnpm start  # producción
 pnpm test   # pruebas con node:test
 ```
 
-La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/health` confirma que el servidor responde y que llega a MongoDB (503 si la base no contesta). Con `HOST=0.0.0.0` la app móvil puede conectarse por la IP de la computadora en la red local.
+La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/health`) confirma que el servidor responde y que llega a MongoDB (503 si la base no contesta). Con `HOST=0.0.0.0` la app móvil puede conectarse por la IP de la computadora en la red local.
 
 - `src/server.js` abre el puerto y cierra la conexión a MongoDB al detenerse.
 - `src/app.js` arma Express (CORS, JSON, rutas y manejo de errores) sin abrir el puerto, para poder probarlo.
@@ -81,8 +81,9 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/health` confirma qu
 
 ### Convenciones para los módulos
 
+- La API cumple el contrato de la app móvil: `docs/API.md` del repo `Life-RPG-mobile`. Si algo cambia, se cambia primero ahí.
 - Las respuestas exitosas devuelven el recurso o la lista directamente.
-- Los errores siempre tienen la forma `{ "error": { "code", "message", "details?" } }`. Los servicios lanzan los errores de `src/shared/errors/AppError.js` (`notFound`, `validationError`, `conflict`…) y `errorHandler` elige el código HTTP. Los errores comunes de Prisma (registro duplicado, id inválido, no encontrado) se traducen solos.
+- Los errores siempre tienen la forma `{ "error": "mensaje en español", "code": "...", "details"?: {...} }`; la app muestra `error` tal cual. Los servicios lanzan los errores de `src/shared/errors/AppError.js` (`notFound`, `validationError`, `conflict`…) y `errorHandler` elige el código HTTP. Los errores comunes de Prisma (registro duplicado, id inválido, no encontrado) se traducen solos.
 - Envuelve cada controlador `async` con `asyncHandler` (`src/shared/utils/asyncHandler.js`) para que sus errores lleguen al manejador.
 - Para agregar un módulo, exporta un `Router` desde `src/modules/<modulo>/interfaces/routes/` y móntalo en `src/routes/index.js`.
 
