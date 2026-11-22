@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "db:check": "node scripts/check-database.js",
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
