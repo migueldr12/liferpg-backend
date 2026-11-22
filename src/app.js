@@ -8,14 +8,18 @@ const { getPrisma } = require('./shared/infrastructure/database/prisma');
 
 // Crea la app de Express sin abrir el puerto, para poder probarla.
 // Las dependencias externas se reciben por parámetro; las pruebas pasan dobles.
-function createApp({ pingDatabase = () => getPrisma().$runCommandRaw({ ping: 1 }) } = {}) {
+function createApp({
+  pingDatabase = () => getPrisma().$runCommandRaw({ ping: 1 }),
+  missionRepository,
+  now,
+} = {}) {
   const app = express();
 
   app.disable('x-powered-by');
   app.use(cors(env.corsOrigins));
   app.use(express.json({ limit: '1mb' }));
 
-  app.use('/api/v1', createApiRouter({ pingDatabase }));
+  app.use('/api/v1', createApiRouter({ pingDatabase, missionRepository, now }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
