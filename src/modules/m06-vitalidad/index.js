@@ -25,11 +25,13 @@ const { makeMoodRouter } = require('./interfaces/routes/moodRoutes');
 // - now: reloj (las pruebas lo controlan).
 // - timeZone: zona con la que se decide qué día es "hoy" (TIME_ZONE, por defecto México).
 // - Usuario: currentUser (x-user-id / DEV_USER_ID fuera de producción, hasta que exista el M00).
+//   devUserId: usuario de prueba (DEV_USER_ID); las pruebas pasan null.
 
 function createMoodModule({
   now = () => new Date(),
   timeZone = process.env.TIME_ZONE || 'America/Mexico_City',
   moodRepository = new PrismaMoodRepository({ db: getPrisma, timeZone }),
+  devUserId = env.devUserId ?? process.env.DEV_USER_ID ?? null,
 } = {}) {
   const deps = { moodRepository, clock: now, timeZone };
 
@@ -47,7 +49,7 @@ function createMoodModule({
 
   const auth = currentUser({
     allowDevHeader: env.allowDevAuth ?? env.nodeEnv !== 'production',
-    devUserId: env.devUserId ?? process.env.DEV_USER_ID ?? null,
+    devUserId,
   });
 
   return { services, router: makeMoodRouter(makeMoodController(services), auth) };

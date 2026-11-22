@@ -8,7 +8,7 @@ const { errorHandler } = require('../../src/shared/middlewares/errorHandler');
 async function encenderAnimo({ moodRepository, now }) {
   const app = express();
   app.use(express.json());
-  app.use('/api/v1/animo', createMoodModule({ moodRepository, now }).router);
+  app.use('/api/v1/animo', createMoodModule({ moodRepository, now, devUserId: null }).router);
   app.use(notFoundHandler);
   app.use(errorHandler);
 
