@@ -1,5 +1,10 @@
 const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+
+// Las pruebas no dependen del .env local: dotenv no pisa variables que ya existen
+process.env.DEV_USER_ID = '';
+process.env.ALLOW_EARLY_FINISH = 'false';
+
 const { createApp } = require('../../src/app');
 const { createMemoryMissionRepository } = require('../support/memoryMissionRepository');
 
@@ -42,10 +47,10 @@ describe('M03 · /api/v1/misiones y /api/v1/sesiones', () => {
     assert.equal(typeof res.body.error, 'string');
   });
 
-  test('un x-user-id que no es id de MongoDB ("u-1") responde 401 con explicación', async () => {
+  test('"u-1" sin DEV_USER_ID configurado responde 401 con instrucciones', async () => {
     const res = await call('GET', '/misiones', { user: 'u-1' });
     assert.equal(res.status, 401);
-    assert.match(res.body.error, /24 caracteres/);
+    assert.match(res.body.error, /DEV_USER_ID/);
   });
 
   test('crea, lista y filtra misiones activas (RDF035–RDF037)', async () => {
