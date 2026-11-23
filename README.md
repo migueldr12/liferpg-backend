@@ -7,17 +7,17 @@ La persistencia usa Prisma 6 con MongoDB Atlas. El esquema ya cubre los modelos 
 
 Las dependencias apuntan hacia adentro: `interfaces → application → domain ← infrastructure`.
 
-| Carpeta | Contenido |
-|---|---|
-| `domain/entities` | Entidades de negocio puras, sin Express ni BD |
-| `domain/repositories` | Contratos (interfaces) de los repositorios |
-| `application/services` | Casos de uso: un servicio por RDF del Excel |
-| `application/dtos` | Datos de entrada y salida de los servicios |
+| Carpeta                       | Contenido                                           |
+| ----------------------------- | --------------------------------------------------- |
+| `domain/entities`             | Entidades de negocio puras, sin Express ni BD       |
+| `domain/repositories`         | Contratos (interfaces) de los repositorios          |
+| `application/services`        | Casos de uso: un servicio por RDF del Excel         |
+| `application/dtos`            | Datos de entrada y salida de los servicios          |
 | `infrastructure/repositories` | Implementación concreta de los contratos con Prisma |
-| `infrastructure/mappers` | Conversión documento de BD ↔ entidad |
-| `interfaces/controllers` | Traducen `req`/`res` a llamadas a servicios |
-| `interfaces/routes` | Router de Express del módulo |
-| `interfaces/validators` | Validación de body, params y query |
+| `infrastructure/mappers`      | Conversión documento de BD ↔ entidad                |
+| `interfaces/controllers`      | Traducen `req`/`res` a llamadas a servicios         |
+| `interfaces/routes`           | Router de Express del módulo                        |
+| `interfaces/validators`       | Validación de body, params y query                  |
 
 ## Carpetas compartidas (`src/`)
 
@@ -29,24 +29,24 @@ Las dependencias apuntan hacia adentro: `interfaces → application → domain �
 
 ## Módulos
 
-| Carpeta | Módulo | Responsable | Sprint |
-|---|---|---|---|
-| `m00-usuarios-autenticacion` | Usuarios, autenticación y dispositivo | Equipo | 1 |
-| `m01-tamagotchi-perfil` | Tamagotchi y perfil de usuario | Dev 1 | 1 |
-| `m02-habitos` | Hábitos diarios (quests) | Dev 1 | 2 |
-| `m03-misiones-enfoque` | Misiones únicas y enfoque | Dev 1 | 3 |
-| `m04-tienda` | Tienda de la mascota | Dev 2 | 1 |
-| `m05-logros-progresion` | Logros y progresión | Dev 2 | 2 |
-| `m06-vitalidad` | Vitalidad y estado de la mascota | Dev 2 | 3 |
-| `m07-visualizador-usuarios` | Visualizador de usuarios | Dev 3 | 1 |
-| `m08-botin` | Botín (regalos entre amigos) | Dev 3 | 2 |
-| `m09-diario-aventura` | Diario de aventura | Dev 3 | 3 |
-| `m10-notificaciones` | Notificaciones de acompañamiento | Dev 4 | 1 |
-| `m11-resumen-progreso` | Resumen de progreso y pendientes | Dev 4 | 2 |
-| `m12-retos-grupo` | Retos y métricas de grupo | Dev 4 | 3 |
-| `m13-sincronizacion-red` | Sincronización local y red | Dev 5 | 1 |
-| `m14-economia-global` | Balanceo de economía global | Dev 5 | 2 |
-| `m15-gestion-bd` | Gestión de base de datos | Dev 5 | 3 |
+| Carpeta                      | Módulo                                | Responsable | Sprint |
+| ---------------------------- | ------------------------------------- | ----------- | ------ |
+| `m00-usuarios-autenticacion` | Usuarios, autenticación y dispositivo | Equipo      | 1      |
+| `m01-tamagotchi-perfil`      | Tamagotchi y perfil de usuario        | Dev 1       | 1      |
+| `m02-habitos`                | Hábitos diarios (quests)              | Dev 1       | 2      |
+| `m03-misiones-enfoque`       | Misiones únicas y enfoque             | Dev 1       | 3      |
+| `m04-tienda`                 | Tienda de la mascota                  | Dev 2       | 1      |
+| `m05-logros-progresion`      | Logros y progresión                   | Dev 2       | 2      |
+| `m06-vitalidad`              | Vitalidad y estado de la mascota      | Dev 2       | 3      |
+| `m07-visualizador-usuarios`  | Visualizador de usuarios              | Dev 3       | 1      |
+| `m08-botin`                  | Botín (regalos entre amigos)          | Dev 3       | 2      |
+| `m09-diario-aventura`        | Diario de aventura                    | Dev 3       | 3      |
+| `m10-notificaciones`         | Notificaciones de acompañamiento      | Dev 4       | 1      |
+| `m11-resumen-progreso`       | Resumen de progreso y pendientes      | Dev 4       | 2      |
+| `m12-retos-grupo`            | Retos y métricas de grupo             | Dev 4       | 3      |
+| `m13-sincronizacion-red`     | Sincronización local y red            | Dev 5       | 1      |
+| `m14-economia-global`        | Balanceo de economía global           | Dev 5       | 2      |
+| `m15-gestion-bd`             | Gestión de base de datos              | Dev 5       | 3      |
 
 ## Configuración
 
@@ -91,4 +91,13 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 
 1. Define el modelo y sus índices en `prisma/schema.prisma`. Usa `@@map` para mantener estable el nombre físico de la colección.
 2. Valida y regenera el cliente. Crea el repositorio en `src/modules/<modulo>/infrastructure/repositories/`, reutilizando el cliente de `src/shared/infrastructure/database/prisma.js`.
-3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
+3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
+4. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
+
+## M06 · Estado de ánimo (`/api/v1/animo`)
+
+- Guarda en `mood_logs` (un registro por usuario y día), `journal_entries` (diario) y en el perfil
+  (`player_profiles`: recordatorio y +5 XP del primer registro del día, en una transacción).
+- El día se calcula en `TIME_ZONE` (por defecto `America/Mexico_City`) y se guarda como `dayStart` en medianoche UTC.
+- Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
+- Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
