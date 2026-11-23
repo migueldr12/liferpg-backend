@@ -1,5 +1,6 @@
 const { Router } = require("express");
 const { createMoodModule } = require("../modules/m06-vitalidad");
+const { createEconomiaModule } = require("../modules/m14-economia-global");
 const { createHealthRouter } = require("./health");
 const {
   createM03Routers,
@@ -16,6 +17,12 @@ function createApiRouter(deps) {
 
   // M06 · Estado de ánimo
   router.use("/animo", createMoodModule({ now: deps.now }).router);
+
+  // M14 · Economía global (PWA Admin, solo ADMIN)
+  const m14 = createEconomiaModule({ now: deps.now }).routers;
+  router.use("/economia", m14.economia);
+  router.use("/catalogo", m14.catalogo);
+  router.use("/push", m14.push);
 
   router.use(["/estado", "/health"], createHealthRouter(deps));
 
