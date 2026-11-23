@@ -119,6 +119,26 @@ La app inicia sesión con **Firebase Authentication** y manda `Authorization: Be
 3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
 4. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
 
+## M14 · Economía global (PWA Admin, solo `ADMIN`)
+
+Todas sus rutas piden `currentUser` y `requireAdmin` (`src/shared/middlewares/requireAdmin.js`, reutilizable por M13 y M15).
+Para probar: `pnpm db:admin-prueba` imprime el `_id` de un administrador.
+
+| Ruta | Qué hace | RDF |
+|---|---|---|
+| `GET /economia/curva` | Versión activa: fórmula, puntos por dificultad, rango de precios y curva 1–50. Sin publicaciones responde la versión 0 (valores por defecto). | 134 |
+| `POST /economia/versiones` | Publica una versión nueva; las anteriores no cambian (no retroactivo). | 135, 136 |
+| `GET/POST /catalogo/categorias`, `PUT/DELETE /catalogo/categorias/:id` | Categorías únicas por tipo; en uso no se borran ni cambian de tipo (409). | 137, 138 |
+| `GET/POST /catalogo/articulos`, `PATCH /catalogo/articulos/:id` | Alta, edición y activar/desactivar. No lista las recompensas personalizadas del M04 (`custom`). | 140 |
+| `GET /push/audiencia`, `GET /push/historial`, `POST /push` | Aviso a todos o a un alias; sin duplicados en 24 h (409). | 141, 142 |
+
+- **Push:** siempre se guarda en `push_campaigns`. Si el `.env` tiene `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL` y
+  `FCM_PRIVATE_KEY`, se envía con Firebase Cloud Messaging (`src/shared/infrastructure/push/fcmClient.js`, sin
+  dependencias) a los tokens de `devices` y desactiva los que ya no existen. Sin llaves queda `en_cola`.
+- **Otros módulos:** `createEconomiaModule().services.consultarEconomiaActiva()` da los puntos por dificultad
+  (M02/M03) y el rango de precio de recompensas (M04, RDF054).
+- **Esquema:** se agregó `icon String?` a `CatalogCategory` (emoji de la PWA). Es opcional: no requiere migrar datos.
+
 ## M06 · Estado de ánimo (`/api/v1/animo`)
 
 - Guarda en `mood_logs` (un registro por usuario y día), `journal_entries` (diario) y en el perfil
@@ -126,3 +146,22 @@ La app inicia sesión con **Firebase Authentication** y manda `Authorization: Be
 - El día se calcula en `TIME_ZONE` (por defecto `America/Mexico_City`) y se guarda como `dayStart` en medianoche UTC.
 - Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
 - Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
+
+## M12 · Retos y métricas de grupo (`/api/v1/retos`)
+
+| Ruta | Qué hace | RDF |
+|---|---|---|
+| `GET /retos/amigos` | Amigos (amistades aceptadas) para invitar. | — |
+| `GET /retos` · `POST /retos` | Retos activos con la aportación de cada participante · crear reto. | 117, 119–121 |
+| `GET /retos/invitaciones` · `POST /retos/invitaciones/:id` `{ accept }` | Invitaciones pendientes · unirse (200) o rechazar (204). | 118 |
+| `GET /retos/metricas?periodo=semana\|mes` | Tu cumplimiento por área frente al promedio de tus amigos (`null` = sin datos). | 122, 123 |
+| `GET /retos/actividad?area=cultura\|fisico\|enfoque` | Ranking de puntos de la semana (desde el lunes), tú incluido. | 124, 125 |
+
+- **Aportaciones (RDF119):** al consultar, el servidor suma cada actividad del área desde que el participante se unió
+  hasta el fin del día límite: hábitos cumplidos, misiones, minutos de enfoque o XP. Cada actividad se guarda una sola
+  vez en `challenge_contributions` (índice único), así que es idempotente.
+- **Sin doble conteo:** M03 guarda la XP de una misión también en su sesión de enfoque, por eso XP y puntos se toman
+  solo de hábitos y misiones; de las sesiones, solo los minutos.
+- **Recompensa (RDF121):** al llegar a la meta el reto pasa a `COMPLETED` y cada participante recibe el artículo
+  `CHALLENGE_REWARD_ITEM` (por defecto "Cofre raro") en su inventario. Es una sola vez, dentro de una transacción.
+- **Zona horaria:** "hoy", la semana y la fecha límite se calculan en `TIME_ZONE` (`src/shared/utils/zonaHoraria.js`).
