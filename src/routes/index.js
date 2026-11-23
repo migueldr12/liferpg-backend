@@ -4,6 +4,8 @@ const { createM03Routers } = require('../modules/m03-misiones-enfoque/interfaces
 const { createResumenProgresoRouter } = require('../modules/m11-resumen-progreso/interfaces/routes');
 const { Router } = require("express");
 const { createMoodModule } = require("../modules/m06-vitalidad");
+const { createHealthRouter } = require("./health");
+const { createUsuariosModule } = require("../modules/m00-usuarios-autenticacion");
 const { createEconomiaModule } = require("../modules/m14-economia-global");
 const {
   createM03Routers,
@@ -19,6 +21,10 @@ const { createRetosModule } = require("../modules/m12-retos-grupo");
 function createApiRouter(deps) {
   const router = Router();
 
+  // M00 · Inicio de sesión con Firebase: el token se convierte en req.user en todas las rutas
+  const m00 = createUsuariosModule({ now: deps.now });
+  router.use(m00.sesion);
+
   // M06 · Estado de ánimo
   router.use("/animo", createMoodModule({ now: deps.now }).router);
 
@@ -29,6 +35,9 @@ function createApiRouter(deps) {
   router.use("/push", m14.push);
 
   router.use(["/estado", "/health"], createHealthRouter(deps));
+
+  // M00 · Cuenta del jugador (/usuarios/me/cuenta y /me/mascota). Va antes del M01.
+  router.use("/usuarios", m00.router);
 
   // URLs exactas que consume movil chillon
   router.use("/usuarios", m01Routes);

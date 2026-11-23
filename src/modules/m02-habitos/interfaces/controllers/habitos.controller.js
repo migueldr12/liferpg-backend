@@ -4,6 +4,9 @@ const { AppError } = require('../../../../shared/errors/AppError');
 const DEFAULT_USER_ID = '6b0356a060aaa347e384ceb7';
 
 async function resolveUserId(prisma, req) {
+  // M00: con login el usuario viene de la sesión de Firebase (req.user)
+  if (req.authError) throw req.authError;
+  if (req.user?.id) return req.user.id;
   const headerId = req.headers['x-user-id'];
   if (headerId) {
     const found = await prisma.user.findUnique({ where: { id: headerId } }).catch(() => null);
