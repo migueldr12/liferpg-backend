@@ -10,11 +10,18 @@ function corsOrigins() {
   return raw.split(',').map((o) => o.trim()).filter(Boolean);
 }
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+
 const env = {
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   port: Number(process.env.PORT) || 3000,
   host: process.env.HOST || '0.0.0.0',
   corsOrigins: corsOrigins(),
+  // Mientras no exista el login (M00): usuario por encabezado X-User-Id o DEV_USER_ID
+  allowDevAuth: nodeEnv !== 'production',
+  devUserId: process.env.DEV_USER_ID || null,
+  // Solo para demos: permite terminar una sesión de enfoque antes de tiempo (M03)
+  allowEarlyFinish: nodeEnv !== 'production' && process.env.ALLOW_EARLY_FINISH === 'true',
 };
 
 module.exports = { env };
