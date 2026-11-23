@@ -787,6 +787,8 @@ model CatalogCategory {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   type        CategoryType
+  // Ícono corto (emoji) que muestra la PWA mientras no se suban imágenes (M14 · RDF139)
+  icon        String?
   iconAssetId String?      @db.ObjectId
   active      Boolean      @default(true)
   createdAt   DateTime     @default(now())
