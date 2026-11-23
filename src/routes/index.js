@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const { createMoodModule } = require('../modules/m06-vitalidad');
 const { createHealthRouter } = require('./health');
 const { createM03Routers } = require('../modules/m03-misiones-enfoque/interfaces/routes');
 
@@ -6,6 +7,9 @@ const { createM03Routers } = require('../modules/m03-misiones-enfoque/interfaces
 // Cada módulo agrega aquí su router desde su propia rama, con el nombre en kebab-case.
 function createApiRouter(deps) {
   const router = Router();
+
+  // M06 · Estado de ánimo
+  router.use('/animo', createMoodModule({ now: deps.now }).router);
 
   router.use(['/estado', '/health'], createHealthRouter(deps));
 
