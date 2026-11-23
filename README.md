@@ -121,3 +121,22 @@ Para probar: `pnpm db:admin-prueba` imprime el `_id` de un administrador.
 - El día se calcula en `TIME_ZONE` (por defecto `America/Mexico_City`) y se guarda como `dayStart` en medianoche UTC.
 - Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
 - Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
+
+## M12 · Retos y métricas de grupo (`/api/v1/retos`)
+
+| Ruta | Qué hace | RDF |
+|---|---|---|
+| `GET /retos/amigos` | Amigos (amistades aceptadas) para invitar. | — |
+| `GET /retos` · `POST /retos` | Retos activos con la aportación de cada participante · crear reto. | 117, 119–121 |
+| `GET /retos/invitaciones` · `POST /retos/invitaciones/:id` `{ accept }` | Invitaciones pendientes · unirse (200) o rechazar (204). | 118 |
+| `GET /retos/metricas?periodo=semana\|mes` | Tu cumplimiento por área frente al promedio de tus amigos (`null` = sin datos). | 122, 123 |
+| `GET /retos/actividad?area=cultura\|fisico\|enfoque` | Ranking de puntos de la semana (desde el lunes), tú incluido. | 124, 125 |
+
+- **Aportaciones (RDF119):** al consultar, el servidor suma cada actividad del área desde que el participante se unió
+  hasta el fin del día límite: hábitos cumplidos, misiones, minutos de enfoque o XP. Cada actividad se guarda una sola
+  vez en `challenge_contributions` (índice único), así que es idempotente.
+- **Sin doble conteo:** M03 guarda la XP de una misión también en su sesión de enfoque, por eso XP y puntos se toman
+  solo de hábitos y misiones; de las sesiones, solo los minutos.
+- **Recompensa (RDF121):** al llegar a la meta el reto pasa a `COMPLETED` y cada participante recibe el artículo
+  `CHALLENGE_REWARD_ITEM` (por defecto "Cofre raro") en su inventario. Es una sola vez, dentro de una transacción.
+- **Zona horaria:** "hoy", la semana y la fecha límite se calculan en `TIME_ZONE` (`src/shared/utils/zonaHoraria.js`).

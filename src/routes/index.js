@@ -12,6 +12,7 @@ const {
 const m01Routes = require("../modules/m01-tamagotchi-perfil/interfaces/routes");
 const m01Ctrl = require("../modules/m01-tamagotchi-perfil/interfaces/controllers/tamagotchiPerfil.controller");
 const m02Routes = require("../modules/m02-habitos/interfaces/routes");
+const { createRetosModule } = require("../modules/m12-retos-grupo");
 
 // Router raíz de la API, montado en /api/v1.
 // Cada módulo agrega aquí su router desde su propia rama, con el nombre en kebab-case.
@@ -45,6 +46,8 @@ function createApiRouter(deps) {
   router.use("/misiones", m03.misiones);
   router.use("/sesiones", m03.sesiones);
 
+  // M12 · Retos y métricas de grupo (PWA Perfil lite)
+  router.use("/retos", createRetosModule({ now: deps.now }).router);
 
   
   router.use(['/estado', '/health'], createHealthRouter(deps));
