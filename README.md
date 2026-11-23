@@ -87,6 +87,31 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 - Envuelve cada controlador `async` con `asyncHandler` (`src/shared/utils/asyncHandler.js`) para que sus errores lleguen al manejador.
 - Para agregar un módulo, exporta un `Router` desde `src/modules/<modulo>/interfaces/routes/` y móntalo en `src/routes/index.js`.
 
+## M00 · Inicio de sesión con Firebase
+
+La app inicia sesión con **Firebase Authentication** y manda `Authorization: Bearer <ID token>` en cada petición.
+
+- **`sesionFirebase`** (`src/modules/m00-usuarios-autenticacion/interfaces/middlewares/`) se ejecuta en todas las rutas:
+  valida el token con las llaves públicas de Google (`src/shared/infrastructure/auth/firebaseTokenVerifier.js`, sin
+  dependencias) y deja en `req.user.id` el `_id` del usuario en MongoDB. Los módulos no cambian: siguen leyendo `req.user.id`.
+- **Primer inicio de sesión:** si nadie tiene ese `firebaseUid`, se liga al usuario que ya exista con ese correo o se crea uno
+  nuevo. En producción, ligar por correo exige correo verificado o Google.
+- **Token inválido o vencido:** 401 con el mensaje para la app. Sin token, fuera de producción siguen funcionando
+  `x-user-id` y `DEV_USER_ID` (modos de prueba de la app).
+- **Configuración:** `FIREBASE_PROJECT_ID` en el `.env` (el mismo Project ID de la app; no es secreto).
+
+| Ruta | Qué hace | RDF |
+|---|---|---|
+| `GET /usuarios/me/cuenta` | Cuenta del juego; `404` si aún no llena "Crear cuenta". | — |
+| `POST /usuarios/me/cuenta` | Crear cuenta (nombre, apellido, edad, género, metas). | 001 |
+| `PUT /usuarios/me/cuenta` | Mi perfil: los mismos datos, foto y color de la mascota. | 024, 026 |
+| `PUT /usuarios/me/mascota` | Elige su animal una sola vez y crea su perfil de jugador (`player_profiles`). | — |
+
+- **Esquema:**
+  - `User` tiene ahora `firebaseUid` (con índice), `account` (tipo `GameAccount`) y `passwordHash` opcional.
+  - `PlayerProfile` tiene ahora `species`.
+  - Todos los campos son opcionales: no requieren migrar datos. Para crear el índice: `pnpm db:push`.
+
 ## Cómo extender la persistencia
 
 1. Define el modelo y sus índices en `prisma/schema.prisma`. Usa `@@map` para mantener estable el nombre físico de la colección.
