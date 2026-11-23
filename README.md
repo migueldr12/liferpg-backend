@@ -94,6 +94,26 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
 4. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
 
+## M14 · Economía global (PWA Admin, solo `ADMIN`)
+
+Todas sus rutas piden `currentUser` y `requireAdmin` (`src/shared/middlewares/requireAdmin.js`, reutilizable por M13 y M15).
+Para probar: `pnpm db:admin-prueba` imprime el `_id` de un administrador.
+
+| Ruta | Qué hace | RDF |
+|---|---|---|
+| `GET /economia/curva` | Versión activa: fórmula, puntos por dificultad, rango de precios y curva 1–50. Sin publicaciones responde la versión 0 (valores por defecto). | 134 |
+| `POST /economia/versiones` | Publica una versión nueva; las anteriores no cambian (no retroactivo). | 135, 136 |
+| `GET/POST /catalogo/categorias`, `PUT/DELETE /catalogo/categorias/:id` | Categorías únicas por tipo; en uso no se borran ni cambian de tipo (409). | 137, 138 |
+| `GET/POST /catalogo/articulos`, `PATCH /catalogo/articulos/:id` | Alta, edición y activar/desactivar. No lista las recompensas personalizadas del M04 (`custom`). | 140 |
+| `GET /push/audiencia`, `GET /push/historial`, `POST /push` | Aviso a todos o a un alias; sin duplicados en 24 h (409). | 141, 142 |
+
+- **Push:** siempre se guarda en `push_campaigns`. Si el `.env` tiene `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL` y
+  `FCM_PRIVATE_KEY`, se envía con Firebase Cloud Messaging (`src/shared/infrastructure/push/fcmClient.js`, sin
+  dependencias) a los tokens de `devices` y desactiva los que ya no existen. Sin llaves queda `en_cola`.
+- **Otros módulos:** `createEconomiaModule().services.consultarEconomiaActiva()` da los puntos por dificultad
+  (M02/M03) y el rango de precio de recompensas (M04, RDF054).
+- **Esquema:** se agregó `icon String?` a `CatalogCategory` (emoji de la PWA). Es opcional: no requiere migrar datos.
+
 ## M06 · Estado de ánimo (`/api/v1/animo`)
 
 - Guarda en `mood_logs` (un registro por usuario y día), `journal_entries` (diario) y en el perfil
