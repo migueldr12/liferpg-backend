@@ -6,8 +6,6 @@ const { notFoundHandler } = require('./shared/middlewares/notFound');
 const { errorHandler } = require('./shared/middlewares/errorHandler');
 const { getPrisma } = require('./shared/infrastructure/database/prisma');
 
-// Crea la app de Express sin abrir el puerto, para poder probarla.
-// Las dependencias externas se reciben por parámetro; las pruebas pasan dobles.
 function createApp({ pingDatabase = () => getPrisma().$runCommandRaw({ ping: 1 }) } = {}) {
   const app = express();
 
@@ -19,6 +17,7 @@ function createApp({ pingDatabase = () => getPrisma().$runCommandRaw({ ping: 1 }
 
   app.use(notFoundHandler);
   app.use(errorHandler);
+
   return app;
 }
 

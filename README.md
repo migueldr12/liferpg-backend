@@ -91,4 +91,4 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 
 1. Define el modelo y sus índices en `prisma/schema.prisma`. Usa `@@map` para mantener estable el nombre físico de la colección.
 2. Valida y regenera el cliente. Crea el repositorio en `src/modules/<modulo>/infrastructure/repositories/`, reutilizando el cliente de `src/shared/infrastructure/database/prisma.js`.
-3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
+3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
