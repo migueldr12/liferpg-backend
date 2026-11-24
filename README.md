@@ -127,6 +127,29 @@ La app inicia sesión con **Firebase Authentication** y manda `Authorization: Be
 - Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
 - Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
 
+## M08 · Botín, regalos entre amigos (`/api/v1/botin`)
+
+| Ruta                                                                  | Qué hace                                                                       | RDF        |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------- |
+| `GET /botin/amigos`                                                   | Amigos (amistades aceptadas) a quienes regalar o pedir.                        | —          |
+| `GET /botin/cofre`                                                    | Mis objetos con rareza, cantidad (`-1` = ilimitado) y si se pueden regalar.    | 88         |
+| `GET /botin/cofre/:amigoId`                                           | Los objetos regalables del cofre de un amigo, para pedirle uno.                | 83         |
+| `POST /botin/regalos` `{ friendId, itemId, message? }`                | Regala: valida, pasa el objeto a su inventario y le avisa por push (201).      | 82, 89, 90 |
+| `GET /botin/solicitudes`                                              | Bandeja (lo que me piden), mis solicitudes y mi cofre.                         | 84         |
+| `POST /botin/solicitudes` `{ friendId, itemId, reason? }`             | Pide un objeto a un amigo (201).                                               | 83         |
+| `POST /botin/solicitudes/:id` `{ accept }`                            | Aceptar entrega el objeto; rechazar solo la cierra.                            | 85         |
+| `GET /botin/historial?tipo=enviado\|recibido&amigo=&desde=`           | Lo que regalé y lo que me regalaron, del más reciente al más antiguo.          | 86, 87     |
+
+- **Qué se puede regalar (RDF089):** que esté en mi cofre, sin equipar, que el catálogo (M14) lo marque como
+  regalable y que queden existencias. La rareza sale de las etiquetas del artículo (`comun`, `raro`, `epico`,
+  `legendario`, `carta`); los de etiqueta `carta` son ilimitados.
+- **Entrega (RDF090):** en una transacción se descuenta al que regala, se suma al que recibe (`source: GIFT`), se
+  registran los movimientos `GIFT_OUT`/`GIFT_IN` y el envío (`gift_transfers`, `DELIVERED`). Después se avisa por
+  FCM si están las variables `FCM_*`; si el aviso falla, el regalo ya quedó entregado.
+- **Solo entre amigos:** amistades `ACCEPTED` (M07); con cualquier otra persona responde 403.
+- **Esquema:** `gift_transfers.giftRequestId` ya no es `@unique`. En MongoDB un índice único en un campo opcional
+  solo deja guardar un documento sin ese campo, así que solo cabía un regalo sin solicitud.
+
 ## M09 · Diario de aventura (`/api/v1/diario`)
 
 | Ruta                                                                         | Qué hace                                                                 | RDF    |
