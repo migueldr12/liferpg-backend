@@ -20,6 +20,7 @@ const {
   createProgressRouter,
 } = require("../modules/m05-logros-progresion/interfaces/routes");
 const { createRetosModule } = require("../modules/m12-retos-grupo");
+const { createDiarioModule } = require("../modules/m09-diario-aventura");
 
 // Router raíz de la API, montado en /api/v1.
 // Cada módulo agrega aquí su router desde su propia rama, con el nombre en kebab-case.
@@ -75,6 +76,15 @@ function createApiRouter(deps) {
       now: deps.now,
     }),
   );
+  // M09 · Diario de aventura (PWA Perfil lite)
+  router.use(
+    "/diario",
+    createDiarioModule({
+      ...(deps.diaryRepository && { diaryRepository: deps.diaryRepository }),
+      now: deps.now,
+    }).router,
+  );
+
   // M12 · Retos y métricas de grupo (PWA Perfil lite)
   router.use("/retos", createRetosModule({ now: deps.now }).router);
 

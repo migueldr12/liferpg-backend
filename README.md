@@ -127,6 +127,26 @@ La app inicia sesión con **Firebase Authentication** y manda `Authorization: Be
 - Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
 - Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
 
+## M09 · Diario de aventura (`/api/v1/diario`)
+
+| Ruta                                                                         | Qué hace                                                                 | RDF    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------ |
+| `GET /diario/actividades?tipo=&origen=&estado=&desde=`                       | Hábitos, misiones y sesiones, de la más reciente a la más antigua.       | 91, 92 |
+| `GET /diario/actividades/:id`                                                | La actividad con su recorrido (`timeline`) y sus notas.                  | 93     |
+| `POST /diario/actividades/:id/notas` `{ text }`                              | Agrega una nota (201). Texto obligatorio, máx. 500 caracteres.           | 94     |
+| `PUT` · `DELETE /diario/actividades/:id/notas/:notaId`                       | Edita la nota (queda `edited: true`) · la borra (204).                   | 95     |
+| `GET /diario/graficas/cumplimiento?rango=semana\|mes\|anio`                  | Actividades cumplidas por día (7 o 30) o por mes del año, por tipo.      | 96     |
+| `GET /diario/graficas/distribucion?rango=semana\|mes\|anio`                  | Total cumplido de cada tipo en el rango.                                 | 97     |
+
+- **Solo lee M02 y M03:** el diario se arma al consultar con `habits`, `habit_check_ins`, `missions` y `focus_sessions`;
+  lo único que escribe son sus notas (`activity_notes`).
+- **Ids de actividad:** `mision-<id>`, `sesion-<id>` (sesiones sin misión, como el enfoque de un hábito) y
+  `habito-<id>-<AAAA-MM-DD>` (el día del hábito, o el lunes de su semana si es semanal). Las notas se guardan con ese id.
+- **Estado de un hábito:** `hecha` con check-in; `pendiente` el día (o la semana) en curso sin check-in; `fallida` los
+  días anteriores sin check-in desde que empezó. Sin filtro `desde`, los fallidos se marcan solo en los últimos 30 días.
+- **Sin doble conteo:** las sesiones de una misión no salen aparte; la misión ya las representa.
+- **Zona horaria:** los hábitos siguen los días de M02 (medianoche UTC); las gráficas agrupan en `TIME_ZONE`.
+
 ## M12 · Retos y métricas de grupo (`/api/v1/retos`)
 
 | Ruta                                                                    | Qué hace                                                                        | RDF          |
