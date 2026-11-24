@@ -14,6 +14,8 @@ function createApp({
   missionRepository,
   achievementRepository,
   diaryRepository,
+  botinRepository,
+  pushSender,
   now,
 } = {}) {
   const app = express();
@@ -23,7 +25,7 @@ function createApp({
   app.use(cors(env.corsOrigins));
   app.use(express.json({ limit: "1mb" }));
 
-  app.use("/api/v1", createApiRouter({ pingDatabase, missionRepository, achievementRepository, diaryRepository, now }));
+  app.use("/api/v1", createApiRouter({ pingDatabase, missionRepository, achievementRepository, diaryRepository, botinRepository, pushSender, now }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

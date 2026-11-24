@@ -21,6 +21,7 @@ const {
 } = require("../modules/m05-logros-progresion/interfaces/routes");
 const { createRetosModule } = require("../modules/m12-retos-grupo");
 const { createDiarioModule } = require("../modules/m09-diario-aventura");
+const { createBotinModule } = require("../modules/m08-botin");
 
 // Router raíz de la API, montado en /api/v1.
 // Cada módulo agrega aquí su router desde su propia rama, con el nombre en kebab-case.
@@ -76,6 +77,16 @@ function createApiRouter(deps) {
       now: deps.now,
     }),
   );
+  // M08 · Botín, regalos entre amigos (PWA Perfil lite)
+  router.use(
+    "/botin",
+    createBotinModule({
+      ...(deps.botinRepository && { botinRepository: deps.botinRepository }),
+      ...(deps.pushSender && { pushSender: deps.pushSender }),
+      now: deps.now,
+    }).router,
+  );
+
   // M09 · Diario de aventura (PWA Perfil lite)
   router.use(
     "/diario",

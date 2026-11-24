@@ -624,7 +624,9 @@ model GiftRequest {
   requester   User          @relation("GiftRequester", fields: [requesterId], references: [id])
   owner       User          @relation("GiftOwner", fields: [ownerId], references: [id])
   catalogItem CatalogItem   @relation(fields: [catalogItemId], references: [id])
-  transfer    GiftTransfer?
+  // Lista y no 1 a 1: en MongoDB un @unique en un campo opcional solo deja UN regalo sin
+  // solicitud. Que una solicitud tenga un solo envío lo cuida el M08 (solo se acepta si está pendiente).
+  transfers   GiftTransfer[]
 
   @@index([ownerId, status])
   @@index([requesterId, status])
@@ -636,7 +638,7 @@ model GiftTransfer {
   senderId      String             @db.ObjectId
   recipientId   String             @db.ObjectId
   catalogItemId String             @db.ObjectId
-  giftRequestId String?            @unique @db.ObjectId
+  giftRequestId String?            @db.ObjectId
   status        GiftTransferStatus @default(SENT)
   message       String?
   sentAt        DateTime           @default(now())
@@ -650,6 +652,7 @@ model GiftTransfer {
 
   @@index([senderId, sentAt])
   @@index([recipientId, sentAt])
+  @@index([giftRequestId])
   @@map("gift_transfers")
 }
 
