@@ -187,7 +187,14 @@ enum BackupFormat {
 model User {
   id              String     @id @default(auto()) @map("_id") @db.ObjectId
   email           String     @unique
-  passwordHash    String
+  // Con Firebase Authentication la contraseña la guarda Firebase, no el backend (M00)
+  passwordHash    String?
+  // uid de Firebase del usuario; se liga en su primer inicio de sesión (M00).
+  // Sin @unique: en MongoDB un índice único choca con los usuarios que aún no lo tienen;
+  // la unicidad la cuida el M00 al ligarlo.
+  firebaseUid     String?
+  // Datos de "Crear cuenta" de la app; null hasta que los llena (M00 · RDF001)
+  account         GameAccount?
   displayName     String
   role            Role       @default(PLAYER)
   status          UserStatus @default(ACTIVE)
@@ -235,7 +242,21 @@ model User {
   pushCampaignsSent        PushCampaign[]          @relation("PushSender")
   pushCampaignsReceived    PushCampaign[]          @relation("PushTarget")
 
+  @@index([firebaseUid])
   @@map("users")
+}
+
+// Cuenta del juego (M00 · RDF001, RDF024, RDF026): la llena la app en "Crear cuenta"
+type GameAccount {
+  firstName  String
+  lastName   String
+  age        Int
+  gender     String
+  goals      String[]
+  customGoal String?
+  photoUrl   String?
+  petColor   String   @default("verde")
+  createdAt  DateTime
 }
 
 model Device {
@@ -297,6 +318,8 @@ model PlayerProfile {
   alias                String
   mascotName           String
   mascotColor          String
+  // Animal elegido en "Bienvenido a Life-RPG": CAT, DOG, DRAGON, HAMSTER o LION (M00, lo lee M01)
+  species              String?
   avatarUrl            String?
   darkMode             Boolean  @default(false)
   level                Int      @default(1)
@@ -787,6 +810,8 @@ model CatalogCategory {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   type        CategoryType
+  // Ícono corto (emoji) que muestra la PWA mientras no se suban imágenes (M14 · RDF139)
+  icon        String?
   iconAssetId String?      @db.ObjectId
   active      Boolean      @default(true)
   createdAt   DateTime     @default(now())

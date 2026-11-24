@@ -87,19 +87,37 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 - Envuelve cada controlador `async` con `asyncHandler` (`src/shared/utils/asyncHandler.js`) para que sus errores lleguen al manejador.
 - Para agregar un módulo, exporta un `Router` desde `src/modules/<modulo>/interfaces/routes/` y móntalo en `src/routes/index.js`.
 
+## M00 · Inicio de sesión con Firebase
+
+La app inicia sesión con **Firebase Authentication** y manda `Authorization: Bearer <ID token>` en cada petición.
+
+- **`sesionFirebase`** (`src/modules/m00-usuarios-autenticacion/interfaces/middlewares/`) se ejecuta en todas las rutas:
+  valida el token con las llaves públicas de Google (`src/shared/infrastructure/auth/firebaseTokenVerifier.js`, sin
+  dependencias) y deja en `req.user.id` el `_id` del usuario en MongoDB. Los módulos no cambian: siguen leyendo `req.user.id`.
+- **Primer inicio de sesión:** si nadie tiene ese `firebaseUid`, se liga al usuario que ya exista con ese correo o se crea uno
+  nuevo. En producción, ligar por correo exige correo verificado o Google.
+- **Token inválido o vencido:** 401 con el mensaje para la app. Sin token, fuera de producción siguen funcionando
+  `x-user-id` y `DEV_USER_ID` (modos de prueba de la app).
+- **Configuración:** `FIREBASE_PROJECT_ID` en el `.env` (el mismo Project ID de la app; no es secreto).
+
+| Ruta                       | Qué hace                                                                      | RDF      |
+| -------------------------- | ----------------------------------------------------------------------------- | -------- |
+| `GET /usuarios/me/cuenta`  | Cuenta del juego; `404` si aún no llena "Crear cuenta".                       | —        |
+| `POST /usuarios/me/cuenta` | Crear cuenta (nombre, apellido, edad, género, metas).                         | 001      |
+| `PUT /usuarios/me/cuenta`  | Mi perfil: los mismos datos, foto y color de la mascota.                      | 024, 026 |
+| `PUT /usuarios/me/mascota` | Elige su animal una sola vez y crea su perfil de jugador (`player_profiles`). | —        |
+
+- **Esquema:**
+  - `User` tiene ahora `firebaseUid` (con índice), `account` (tipo `GameAccount`) y `passwordHash` opcional.
+  - `PlayerProfile` tiene ahora `species`.
+  - Todos los campos son opcionales: no requieren migrar datos. Para crear el índice: `pnpm db:push`.
+
 ## Cómo extender la persistencia
 
 1. Define el modelo y sus índices en `prisma/schema.prisma`. Usa `@@map` para mantener estable el nombre físico de la colección.
 2. Valida y regenera el cliente. Crea el repositorio en `src/modules/<modulo>/infrastructure/repositories/`, reutilizando el cliente de `src/shared/infrastructure/database/prisma.js`.
 3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
 4. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
-
-## Assets y pertenencia por usuario
-
-- El seed de assets toma `../liferpg-frontend/public/catalog/manifest.json` y registra el catálogo compartido en `icon_assets`, `catalog_categories` y `catalog_items`. `catalog_items.icon` guarda una clave estable (por ejemplo, `item.boina-pintor`) y `iconAssetId` apunta al archivo (`url` relativa a la raíz pública del frontend). La base guarda referencias, no los SVG.
-- **El seed no entrega assets a ningún usuario.** La propiedad se registra en `inventory_entries` mediante `userId` y `catalogItemId` (con cantidad y estado); los looks de `outfits` guardan los IDs de los artículos equipados. El perfil conserva el color de la mascota en `player_profiles.mascotColor`.
-- Al consultar el inventario o vestidor de un usuario, el backend usa su `userId` para devolver únicamente sus artículos. Al guardar un look, el servicio de vestidor valida que los IDs equipados pertenezcan a ese inventario. Comprar, recibir o desbloquear un artículo es lo que debe crear o actualizar la entrada de inventario; estar en el catálogo no significa poseerlo.
-- El cliente resuelve las claves `icon` del catálogo para dibujarlas; para la mascota usa el color del perfil y las claves de los artículos equipados. Las URLs `/catalog/**` son archivos servidos por el frontend, no rutas de esta API. Véase [la guía de assets del frontend](../liferpg-frontend/docs/assets.md).
 
 ## M06 · Estado de ánimo (`/api/v1/animo`)
 
@@ -108,3 +126,22 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 - El día se calcula en `TIME_ZONE` (por defecto `America/Mexico_City`) y se guarda como `dayStart` en medianoche UTC.
 - Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
 - Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
+
+## M12 · Retos y métricas de grupo (`/api/v1/retos`)
+
+| Ruta                                                                    | Qué hace                                                                        | RDF          |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------ |
+| `GET /retos/amigos`                                                     | Amigos (amistades aceptadas) para invitar.                                      | —            |
+| `GET /retos` · `POST /retos`                                            | Retos activos con la aportación de cada participante · crear reto.              | 117, 119–121 |
+| `GET /retos/invitaciones` · `POST /retos/invitaciones/:id` `{ accept }` | Invitaciones pendientes · unirse (200) o rechazar (204).                        | 118          |
+| `GET /retos/metricas?periodo=semana\|mes`                               | Tu cumplimiento por área frente al promedio de tus amigos (`null` = sin datos). | 122, 123     |
+| `GET /retos/actividad?area=cultura\|fisico\|enfoque`                    | Ranking de puntos de la semana (desde el lunes), tú incluido.                   | 124, 125     |
+
+- **Aportaciones (RDF119):** al consultar, el servidor suma cada actividad del área desde que el participante se unió
+  hasta el fin del día límite: hábitos cumplidos, misiones, minutos de enfoque o XP. Cada actividad se guarda una sola
+  vez en `challenge_contributions` (índice único), así que es idempotente.
+- **Sin doble conteo:** M03 guarda la XP de una misión también en su sesión de enfoque, por eso XP y puntos se toman
+  solo de hábitos y misiones; de las sesiones, solo los minutos.
+- **Recompensa (RDF121):** al llegar a la meta el reto pasa a `COMPLETED` y cada participante recibe el artículo
+  `CHALLENGE_REWARD_ITEM` (por defecto "Cofre raro") en su inventario. Es una sola vez, dentro de una transacción.
+- **Zona horaria:** "hoy", la semana y la fecha límite se calculan en `TIME_ZONE` (`src/shared/utils/zonaHoraria.js`).

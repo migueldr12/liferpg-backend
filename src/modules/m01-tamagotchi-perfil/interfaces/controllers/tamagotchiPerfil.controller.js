@@ -4,6 +4,9 @@ const { AppError } = require('../../../../shared/errors/AppError');
 const DEFAULT_USER_ID = '6b0356a060aaa347e384ceb7';
 
 function getUserId(req) {
+  // M00: con login el usuario viene de la sesión de Firebase (req.user)
+  if (req.authError) throw req.authError;
+  if (req.user?.id) return req.user.id;
   return req.headers['x-user-id'] || DEFAULT_USER_ID;
 }
 
