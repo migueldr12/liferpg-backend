@@ -328,6 +328,12 @@ model PlayerProfile {
   culturePoints        Int      @default(0)
   physicalPoints       Int      @default(0)
   focusPoints          Int      @default(0)
+  // Ropa equipada por parte (slug del catálogo; M01 y M04). La app la usa para
+  // dibujar el look de la mascota y el fondo de la Casa.
+  equippedHeadSlug     String?
+  equippedFaceSlug     String?
+  equippedBodySlug     String?
+  equippedBgSlug       String?
   currentStreak        Int      @default(0)
   bestStreak           Int      @default(0)
   moodReminderEnabled  Boolean  @default(true)
@@ -346,6 +352,12 @@ model Outfit {
   userId    String   @db.ObjectId
   name      String
   equipped  Json
+  // Prendas del look por parte (slug del catálogo). M01 las usa al guardar y
+  // activar un look; se mantienen además del JSON para consultas rápidas.
+  headSlug  String?
+  faceSlug  String?
+  bodySlug  String?
+  bgSlug    String?
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -836,9 +848,17 @@ model CatalogItem {
   description String?
   group       String
   icon        String
+  // Nombre estable del artículo en el catálogo (M04/M01). Para fondos y accesorios
+  // coincide con el nombre de su imagen en la app: "boina-lector", "fondo-casa"…
+  slug        String?
+  // Nombre de la imagen que vive en la app (assets/vestidor). El backend no guarda
+  // archivos; si falta, la app usa el id/slug del artículo.
+  asset       String?
   price       Int        @default(0)
   pointType   PointType?
   slot        SlotType?
+  // Recompensas personalizadas (M04): desaparecen del inventario al canjearlas
+  consumable  Boolean?   @default(false)
   minLevel    Int?
   giftable    Boolean    @default(false)
   custom      Boolean    @default(false)
@@ -859,6 +879,7 @@ model CatalogItem {
   @@index([group, active])
   @@index([categoryId])
   @@index([ownerId])
+  @@index([slug])
   @@map("catalog_items")
 }
 

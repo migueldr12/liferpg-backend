@@ -139,6 +139,31 @@ Para probar: `pnpm db:admin-prueba` imprime el `_id` de un administrador.
   (M02/M03) y el rango de precio de recompensas (M04, RDF054).
 - **Esquema:** se agregó `icon String?` a `CatalogCategory` (emoji de la PWA). Es opcional: no requiere migrar datos.
 
+## M04 · Tienda e inventario (`/api/v1/tienda` y `/api/v1/inventario`)
+
+Todas las rutas piden `currentUser`. Usa el catálogo de `catalog_items` (compartido con el M14): los artículos de la
+tienda tienen `custom: false` y las recompensas de un jugador, `custom: true` con su `ownerId`.
+
+| Ruta | Qué hace | RDF |
+|---|---|---|
+| `GET /tienda/articulos` | Artículos activos (de la tienda y las recompensas propias). | 048 |
+| `POST /tienda/compras` | Valida y descuenta los puntos del tipo del artículo; lo guarda en el inventario. | 050 |
+| `GET /tienda/precio-sugerido` | Rango sugerido por nivel y rango permitido por la economía (M14). | 054 |
+| `POST/GET/PUT/DELETE /tienda/recompensas[/:id]` | Recompensas personalizadas del jugador (solo las propias). | 052–056 |
+| `GET /inventario` | Recompensas, consumibles y ropa/fondos. | 057 |
+| `GET /inventario/canjes` | Historial de lo canjeado o usado, del más reciente al más antiguo. | 059 |
+| `POST /inventario/recompensas/:id/canjear` · `POST /inventario/consumibles/:id/usar` | Canjear una recompensa · gastar un consumible. | 058 |
+| `PATCH /inventario/ropa/:id` | Pone o quita la prenda (una por parte) y actualiza el look del perfil. | 021, 022 |
+
+- **Imágenes:** el backend **no** guarda archivos. `CatalogItem.slug` y `CatalogItem.asset` llevan el nombre de la
+  imagen que vive en la app (`boina-lector`, `fondo-casa`…); si `asset` falta, la API devuelve el `slug`. La app,
+  si el nombre no existe, muestra el ícono de siempre.
+- **Datos de prueba:** `pnpm db:seed-m04` crea los 12 artículos del vestidor (slug = nombre de la imagen) y le da al
+  usuario `dev.yess@liferpg.test` ropa, fondo, una recompensa, consumibles y puntos.
+- **Esquema:** se agregaron `slug` y `asset` a `CatalogItem`, `consumable` a `CatalogItem` y los campos
+  `equippedHeadSlug`, `equippedFaceSlug`, `equippedBodySlug` y `equippedBgSlug` a `PlayerProfile` (los usa el look
+  compartido con M01).
+
 ## M06 · Estado de ánimo (`/api/v1/animo`)
 
 - Guarda en `mood_logs` (un registro por usuario y día), `journal_entries` (diario) y en el perfil
