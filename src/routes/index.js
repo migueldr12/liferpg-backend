@@ -22,6 +22,7 @@ const {
 const { createRetosModule } = require("../modules/m12-retos-grupo");
 const { createDiarioModule } = require("../modules/m09-diario-aventura");
 const { createBotinModule } = require("../modules/m08-botin");
+const { createTiendaModule } = require("../modules/m04-tienda");
 
 // Router raíz de la API, montado en /api/v1.
 // Cada módulo agrega aquí su router desde su propia rama, con el nombre en kebab-case.
