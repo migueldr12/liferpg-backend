@@ -17,6 +17,7 @@ const m01Ctrl = require("../modules/m01-tamagotchi-perfil/interfaces/controllers
 const m02Routes = require("../modules/m02-habitos/interfaces/routes");
 const {
   createAchievementRouter,
+  createProgressRouter,
 } = require("../modules/m05-logros-progresion/interfaces/routes");
 const { createRetosModule } = require("../modules/m12-retos-grupo");
 
@@ -59,11 +60,19 @@ function createApiRouter(deps) {
   router.use("/misiones", m03.misiones);
   router.use("/sesiones", m03.sesiones);
 
-  // M05 · Logros (RDF060)
+  // M05 · Logros (RDF060, RDF063, RDF064) y Tú vs. tú (RF018)
   router.use(
     "/logros",
     createAchievementRouter({
       achievementRepository: deps.achievementRepository,
+      now: deps.now,
+    }),
+  );
+  router.use(
+    "/progreso",
+    createProgressRouter({
+      progressRepository: deps.progressRepository,
+      now: deps.now,
     }),
   );
   // M12 · Retos y métricas de grupo (PWA Perfil lite)
