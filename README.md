@@ -100,12 +100,12 @@ La app inicia sesión con **Firebase Authentication** y manda `Authorization: Be
   `x-user-id` y `DEV_USER_ID` (modos de prueba de la app).
 - **Configuración:** `FIREBASE_PROJECT_ID` en el `.env` (el mismo Project ID de la app; no es secreto).
 
-| Ruta | Qué hace | RDF |
-|---|---|---|
-| `GET /usuarios/me/cuenta` | Cuenta del juego; `404` si aún no llena "Crear cuenta". | — |
-| `POST /usuarios/me/cuenta` | Crear cuenta (nombre, apellido, edad, género, metas). | 001 |
-| `PUT /usuarios/me/cuenta` | Mi perfil: los mismos datos, foto y color de la mascota. | 024, 026 |
-| `PUT /usuarios/me/mascota` | Elige su animal una sola vez y crea su perfil de jugador (`player_profiles`). | — |
+| Ruta                       | Qué hace                                                                      | RDF      |
+| -------------------------- | ----------------------------------------------------------------------------- | -------- |
+| `GET /usuarios/me/cuenta`  | Cuenta del juego; `404` si aún no llena "Crear cuenta".                       | —        |
+| `POST /usuarios/me/cuenta` | Crear cuenta (nombre, apellido, edad, género, metas).                         | 001      |
+| `PUT /usuarios/me/cuenta`  | Mi perfil: los mismos datos, foto y color de la mascota.                      | 024, 026 |
+| `PUT /usuarios/me/mascota` | Elige su animal una sola vez y crea su perfil de jugador (`player_profiles`). | —        |
 
 - **Esquema:**
   - `User` tiene ahora `firebaseUid` (con índice), `account` (tipo `GameAccount`) y `passwordHash` opcional.
@@ -119,51 +119,6 @@ La app inicia sesión con **Firebase Authentication** y manda `Authorization: Be
 3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
 4. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
 
-## M14 · Economía global (PWA Admin, solo `ADMIN`)
-
-Todas sus rutas piden `currentUser` y `requireAdmin` (`src/shared/middlewares/requireAdmin.js`, reutilizable por M13 y M15).
-Para probar: `pnpm db:admin-prueba` imprime el `_id` de un administrador.
-
-| Ruta | Qué hace | RDF |
-|---|---|---|
-| `GET /economia/curva` | Versión activa: fórmula, puntos por dificultad, rango de precios y curva 1–50. Sin publicaciones responde la versión 0 (valores por defecto). | 134 |
-| `POST /economia/versiones` | Publica una versión nueva; las anteriores no cambian (no retroactivo). | 135, 136 |
-| `GET/POST /catalogo/categorias`, `PUT/DELETE /catalogo/categorias/:id` | Categorías únicas por tipo; en uso no se borran ni cambian de tipo (409). | 137, 138 |
-| `GET/POST /catalogo/articulos`, `PATCH /catalogo/articulos/:id` | Alta, edición y activar/desactivar. No lista las recompensas personalizadas del M04 (`custom`). | 140 |
-| `GET /push/audiencia`, `GET /push/historial`, `POST /push` | Aviso a todos o a un alias; sin duplicados en 24 h (409). | 141, 142 |
-
-- **Push:** siempre se guarda en `push_campaigns`. Si el `.env` tiene `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL` y
-  `FCM_PRIVATE_KEY`, se envía con Firebase Cloud Messaging (`src/shared/infrastructure/push/fcmClient.js`, sin
-  dependencias) a los tokens de `devices` y desactiva los que ya no existen. Sin llaves queda `en_cola`.
-- **Otros módulos:** `createEconomiaModule().services.consultarEconomiaActiva()` da los puntos por dificultad
-  (M02/M03) y el rango de precio de recompensas (M04, RDF054).
-- **Esquema:** se agregó `icon String?` a `CatalogCategory` (emoji de la PWA). Es opcional: no requiere migrar datos.
-
-## M04 · Tienda e inventario (`/api/v1/tienda` y `/api/v1/inventario`)
-
-Todas las rutas piden `currentUser`. Usa el catálogo de `catalog_items` (compartido con el M14): los artículos de la
-tienda tienen `custom: false` y las recompensas de un jugador, `custom: true` con su `ownerId`.
-
-| Ruta | Qué hace | RDF |
-|---|---|---|
-| `GET /tienda/articulos` | Artículos activos (de la tienda y las recompensas propias). | 048 |
-| `POST /tienda/compras` | Valida y descuenta los puntos del tipo del artículo; lo guarda en el inventario. | 050 |
-| `GET /tienda/precio-sugerido` | Rango sugerido por nivel y rango permitido por la economía (M14). | 054 |
-| `POST/GET/PUT/DELETE /tienda/recompensas[/:id]` | Recompensas personalizadas del jugador (solo las propias). | 052–056 |
-| `GET /inventario` | Recompensas, consumibles y ropa/fondos. | 057 |
-| `GET /inventario/canjes` | Historial de lo canjeado o usado, del más reciente al más antiguo. | 059 |
-| `POST /inventario/recompensas/:id/canjear` · `POST /inventario/consumibles/:id/usar` | Canjear una recompensa · gastar un consumible. | 058 |
-| `PATCH /inventario/ropa/:id` | Pone o quita la prenda (una por parte) y actualiza el look del perfil. | 021, 022 |
-
-- **Imágenes:** el backend **no** guarda archivos. `CatalogItem.slug` y `CatalogItem.asset` llevan el nombre de la
-  imagen que vive en la app (`boina-lector`, `fondo-casa`…); si `asset` falta, la API devuelve el `slug`. La app,
-  si el nombre no existe, muestra el ícono de siempre.
-- **Datos de prueba:** `pnpm db:seed-m04` crea los 12 artículos del vestidor (slug = nombre de la imagen) y le da al
-  usuario `dev.yess@liferpg.test` ropa, fondo, una recompensa, consumibles y puntos.
-- **Esquema:** se agregaron `slug` y `asset` a `CatalogItem`, `consumable` a `CatalogItem` y los campos
-  `equippedHeadSlug`, `equippedFaceSlug`, `equippedBodySlug` y `equippedBgSlug` a `PlayerProfile` (los usa el look
-  compartido con M01).
-
 ## M06 · Estado de ánimo (`/api/v1/animo`)
 
 - Guarda en `mood_logs` (un registro por usuario y día), `journal_entries` (diario) y en el perfil
@@ -172,15 +127,35 @@ tienda tienen `custom: false` y las recompensas de un jugador, `custom: true` co
 - Usuario de prueba mientras no exista el M00: `pnpm db:usuario-prueba` imprime un `_id` para `x-user-id` o `DEV_USER_ID`.
 - Pruebas sin Atlas: `tests/support/prismaFalso.js` imita el cliente de Prisma para probar `PrismaMoodRepository`.
 
+## M09 · Diario de aventura (`/api/v1/diario`)
+
+| Ruta                                                                         | Qué hace                                                                 | RDF    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------ |
+| `GET /diario/actividades?tipo=&origen=&estado=&desde=`                       | Hábitos, misiones y sesiones, de la más reciente a la más antigua.       | 91, 92 |
+| `GET /diario/actividades/:id`                                                | La actividad con su recorrido (`timeline`) y sus notas.                  | 93     |
+| `POST /diario/actividades/:id/notas` `{ text }`                              | Agrega una nota (201). Texto obligatorio, máx. 500 caracteres.           | 94     |
+| `PUT` · `DELETE /diario/actividades/:id/notas/:notaId`                       | Edita la nota (queda `edited: true`) · la borra (204).                   | 95     |
+| `GET /diario/graficas/cumplimiento?rango=semana\|mes\|anio`                  | Actividades cumplidas por día (7 o 30) o por mes del año, por tipo.      | 96     |
+| `GET /diario/graficas/distribucion?rango=semana\|mes\|anio`                  | Total cumplido de cada tipo en el rango.                                 | 97     |
+
+- **Solo lee M02 y M03:** el diario se arma al consultar con `habits`, `habit_check_ins`, `missions` y `focus_sessions`;
+  lo único que escribe son sus notas (`activity_notes`).
+- **Ids de actividad:** `mision-<id>`, `sesion-<id>` (sesiones sin misión, como el enfoque de un hábito) y
+  `habito-<id>-<AAAA-MM-DD>` (el día del hábito, o el lunes de su semana si es semanal). Las notas se guardan con ese id.
+- **Estado de un hábito:** `hecha` con check-in; `pendiente` el día (o la semana) en curso sin check-in; `fallida` los
+  días anteriores sin check-in desde que empezó. Sin filtro `desde`, los fallidos se marcan solo en los últimos 30 días.
+- **Sin doble conteo:** las sesiones de una misión no salen aparte; la misión ya las representa.
+- **Zona horaria:** los hábitos siguen los días de M02 (medianoche UTC); las gráficas agrupan en `TIME_ZONE`.
+
 ## M12 · Retos y métricas de grupo (`/api/v1/retos`)
 
-| Ruta | Qué hace | RDF |
-|---|---|---|
-| `GET /retos/amigos` | Amigos (amistades aceptadas) para invitar. | — |
-| `GET /retos` · `POST /retos` | Retos activos con la aportación de cada participante · crear reto. | 117, 119–121 |
-| `GET /retos/invitaciones` · `POST /retos/invitaciones/:id` `{ accept }` | Invitaciones pendientes · unirse (200) o rechazar (204). | 118 |
-| `GET /retos/metricas?periodo=semana\|mes` | Tu cumplimiento por área frente al promedio de tus amigos (`null` = sin datos). | 122, 123 |
-| `GET /retos/actividad?area=cultura\|fisico\|enfoque` | Ranking de puntos de la semana (desde el lunes), tú incluido. | 124, 125 |
+| Ruta                                                                    | Qué hace                                                                        | RDF          |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------ |
+| `GET /retos/amigos`                                                     | Amigos (amistades aceptadas) para invitar.                                      | —            |
+| `GET /retos` · `POST /retos`                                            | Retos activos con la aportación de cada participante · crear reto.              | 117, 119–121 |
+| `GET /retos/invitaciones` · `POST /retos/invitaciones/:id` `{ accept }` | Invitaciones pendientes · unirse (200) o rechazar (204).                        | 118          |
+| `GET /retos/metricas?periodo=semana\|mes`                               | Tu cumplimiento por área frente al promedio de tus amigos (`null` = sin datos). | 122, 123     |
+| `GET /retos/actividad?area=cultura\|fisico\|enfoque`                    | Ranking de puntos de la semana (desde el lunes), tú incluido.                   | 124, 125     |
 
 - **Aportaciones (RDF119):** al consultar, el servidor suma cada actividad del área desde que el participante se unió
   hasta el fin del día límite: hábitos cumplidos, misiones, minutos de enfoque o XP. Cada actividad se guarda una sola
