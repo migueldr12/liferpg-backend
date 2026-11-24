@@ -94,6 +94,13 @@ La API queda en `http://localhost:3000/api/v1`. `GET /api/v1/estado` (alias `/he
 3. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.pnpm db:validate
 4. Inyecta el repositorio en el servicio. Por ejemplo, `createCatalogItemRepository()` expone `list()`, `create({ name, group, icon, price, tags })` y `setActive(id, active)`. Otra implementación que ofrezca esas operaciones puede reemplazarla sin cambiar el servicio. Para cerrar el proceso, usa `disconnect()`; no desconectes después de cada petición.
 
+## Assets y pertenencia por usuario
+
+- El seed de assets toma `../liferpg-frontend/public/catalog/manifest.json` y registra el catálogo compartido en `icon_assets`, `catalog_categories` y `catalog_items`. `catalog_items.icon` guarda una clave estable (por ejemplo, `item.boina-pintor`) y `iconAssetId` apunta al archivo (`url` relativa a la raíz pública del frontend). La base guarda referencias, no los SVG.
+- **El seed no entrega assets a ningún usuario.** La propiedad se registra en `inventory_entries` mediante `userId` y `catalogItemId` (con cantidad y estado); los looks de `outfits` guardan los IDs de los artículos equipados. El perfil conserva el color de la mascota en `player_profiles.mascotColor`.
+- Al consultar el inventario o vestidor de un usuario, el backend usa su `userId` para devolver únicamente sus artículos. Al guardar un look, el servicio de vestidor valida que los IDs equipados pertenezcan a ese inventario. Comprar, recibir o desbloquear un artículo es lo que debe crear o actualizar la entrada de inventario; estar en el catálogo no significa poseerlo.
+- El cliente resuelve las claves `icon` del catálogo para dibujarlas; para la mascota usa el color del perfil y las claves de los artículos equipados. Las URLs `/catalog/**` son archivos servidos por el frontend, no rutas de esta API. Véase [la guía de assets del frontend](../liferpg-frontend/docs/assets.md).
+
 ## M06 · Estado de ánimo (`/api/v1/animo`)
 
 - Guarda en `mood_logs` (un registro por usuario y día), `journal_entries` (diario) y en el perfil
