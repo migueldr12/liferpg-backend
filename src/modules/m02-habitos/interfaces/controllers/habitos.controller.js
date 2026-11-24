@@ -4,7 +4,6 @@ const { AppError } = require('../../../../shared/errors/AppError');
 const DEFAULT_USER_ID = '6b0356a060aaa347e384ceb7';
 
 async function resolveUserId(prisma, req) {
-  // M00: con login el usuario viene de la sesión de Firebase (req.user)
   if (req.authError) throw req.authError;
   if (req.user?.id) return req.user.id;
   const headerId = req.headers['x-user-id'];
@@ -28,19 +27,46 @@ function mapPointTypeToEs(pt) {
   return { CULTURE: 'cultura', PHYSICAL: 'fisico', FOCUS: 'enfoque' }[pt] || 'cultura';
 }
 function mapPointTypeToPrisma(pt) {
-  return { cultura: 'CULTURE', fisico: 'PHYSICAL', enfoque: 'FOCUS', CULTURE: 'CULTURE', PHYSICAL: 'PHYSICAL', FOCUS: 'FOCUS' }[pt] || 'CULTURE';
+  return (
+    {
+      cultura: 'CULTURE',
+      fisico: 'PHYSICAL',
+      enfoque: 'FOCUS',
+      CULTURE: 'CULTURE',
+      PHYSICAL: 'PHYSICAL',
+      FOCUS: 'FOCUS',
+    }[pt] || 'CULTURE'
+  );
 }
 function mapDiffToEs(d) {
   return { EASY: 'facil', MEDIUM: 'media', HARD: 'dificil' }[d] || 'media';
 }
 function mapDiffToPrisma(d) {
-  return { facil: 'EASY', media: 'MEDIUM', dificil: 'HARD', EASY: 'EASY', MEDIUM: 'MEDIUM', HARD: 'HARD' }[d] || 'MEDIUM';
+  return (
+    {
+      facil: 'EASY',
+      media: 'MEDIUM',
+      dificil: 'HARD',
+      EASY: 'EASY',
+      MEDIUM: 'MEDIUM',
+      HARD: 'HARD',
+    }[d] || 'MEDIUM'
+  );
 }
 function mapPenaltyToEs(p) {
   return { HP: 'hp', STREAK: 'racha', POINTS: 'puntos' }[p] || 'hp';
 }
 function mapPenaltyToPrisma(p) {
-  return { hp: 'HP', racha: 'STREAK', puntos: 'POINTS', HP: 'HP', STREAK: 'STREAK', POINTS: 'POINTS' }[p] || 'HP';
+  return (
+    {
+      hp: 'HP',
+      racha: 'STREAK',
+      puntos: 'POINTS',
+      HP: 'HP',
+      STREAK: 'STREAK',
+      POINTS: 'POINTS',
+    }[p] || 'HP'
+  );
 }
 function mapPenaltyValue(p) {
   const type = mapPenaltyToPrisma(p);
@@ -73,11 +99,20 @@ function getTodayBounds() {
   return { start, end };
 }
 
-function toLocalDateStr(dateObj) {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
+function toDateKeyInOffset(dateObj, offsetHours = -6) {
+  const shifted = new Date(new Date(dateObj).getTime() + offsetHours * 60 * 60 * 1000);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function addDaysToKey(dateKey, deltaDays) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(
+    dt.getUTCDate()
+  ).padStart(2, '0')}`;
 }
 
 // GET /api/v1/habitos/hoy
@@ -150,7 +185,8 @@ async function createHabit(req, res, next) {
     const userId = await resolveUserId(prisma, req);
     const { name, pointType, difficulty, days, focusMinutes, penalty } = req.body;
 
-    const frequency = Array.isArray(days) && days.length > 0 && days.length < 7 ? 'WEEKLY' : 'DAILY';
+    const frequency =
+      Array.isArray(days) && days.length > 0 && days.length < 7 ? 'WEEKLY' : 'DAILY';
     const penaltyType = mapPenaltyToPrisma(penalty);
 
     const habit = await prisma.habit.create({
@@ -184,7 +220,8 @@ async function updateHabit(req, res, next) {
     if (pointType !== undefined) data.area = mapPointTypeToPrisma(pointType);
     if (difficulty !== undefined) data.difficulty = mapDiffToPrisma(difficulty);
     if (days !== undefined) {
-      data.frequency = Array.isArray(days) && days.length > 0 && days.length < 7 ? 'WEEKLY' : 'DAILY';
+      data.frequency =
+        Array.isArray(days) && days.length > 0 && days.length < 7 ? 'WEEKLY' : 'DAILY';
     }
     if (focusMinutes !== undefined) data.focusMinutes = focusMinutes ? Number(focusMinutes) : null;
     if (penalty !== undefined) {
@@ -242,11 +279,12 @@ async function checkInHabit(req, res, next) {
     }
 
     const reward = REWARD_MAP[habit.difficulty] || 20;
-    const pointField = {
-      CULTURE: 'culturePoints',
-      PHYSICAL: 'physicalPoints',
-      FOCUS: 'focusPoints',
-    }[habit.area] || 'culturePoints';
+    const pointField =
+      {
+        CULTURE: 'culturePoints',
+        PHYSICAL: 'physicalPoints',
+        FOCUS: 'focusPoints',
+      }[habit.area] || 'culturePoints';
 
     const checkIn = await prisma.habitCheckIn.create({
       data: {
@@ -259,14 +297,6 @@ async function checkInHabit(req, res, next) {
         pointsAwarded: reward,
       },
     });
-
-    const updatedHabit = await prisma.habit.update({
-      where: { id: habitId },
-      data: {
-        currentStreak: { increment: 1 },
-        bestStreak: { increment: 1 },
-      },
-    }).catch(() => habit);
 
     const profile = await prisma.playerProfile.findUnique({ where: { userId } });
     if (profile) {
@@ -284,7 +314,7 @@ async function checkInHabit(req, res, next) {
 
     res.status(201).json({
       habit: {
-        ...serializeHabit(updatedHabit),
+        ...serializeHabit(habit),
         done: true,
         completedAt: checkIn.completedAt.toISOString(),
       },
@@ -321,23 +351,17 @@ async function undoCheckInHabit(req, res, next) {
     }
 
     const reward = existing.pointsAwarded || REWARD_MAP[habit.difficulty] || 20;
-    const pointField = {
-      CULTURE: 'culturePoints',
-      PHYSICAL: 'physicalPoints',
-      FOCUS: 'focusPoints',
-    }[habit.area] || 'culturePoints';
+    const pointField =
+      {
+        CULTURE: 'culturePoints',
+        PHYSICAL: 'physicalPoints',
+        FOCUS: 'focusPoints',
+      }[habit.area] || 'culturePoints';
 
     await prisma.habitCheckIn.update({
       where: { id: existing.id },
       data: { revertedAt: new Date() },
     });
-
-    const updatedHabit = await prisma.habit.update({
-      where: { id: habitId },
-      data: {
-        currentStreak: Math.max(0, (habit.currentStreak || 1) - 1),
-      },
-    }).catch(() => habit);
 
     const profile = await prisma.playerProfile.findUnique({ where: { userId } });
     if (profile) {
@@ -355,7 +379,7 @@ async function undoCheckInHabit(req, res, next) {
 
     res.json({
       habit: {
-        ...serializeHabit(updatedHabit),
+        ...serializeHabit(habit),
         done: false,
         completedAt: null,
       },
@@ -368,33 +392,46 @@ async function undoCheckInHabit(req, res, next) {
   }
 }
 
-// GET /api/v1/habitos/rachas
+// GET /api/v1/habitos/rachas?mes=AAAA-MM[&habito=id]
 async function getStreakCalendar(req, res, next) {
   try {
     const prisma = getPrisma();
     const userId = await resolveUserId(prisma, req);
-    const todayStr = toLocalDateStr(new Date());
+    const offsetHours = -6;
+    const todayStr = toDateKeyInOffset(new Date(), offsetHours);
     const month = req.query.mes || todayStr.slice(0, 7);
     const habitId = req.query.habito || null;
 
     const [year, m] = month.split('-').map(Number);
-    const monthStart = new Date(year, m - 1, 1);
-    const monthEnd = new Date(year, m, 1);
+    const rangeStart = new Date(Date.UTC(year, m - 1, 1) - 62 * 86400000);
+    const rangeEnd = new Date(Date.UTC(year, m, 2) + 86400000);
 
-    const habits = await prisma.habit.findMany({
-      where: { userId, active: true, ...(habitId ? { id: habitId } : {}) },
-    });
+    const [habits, checkIns, profile] = await Promise.all([
+      prisma.habit.findMany({
+        where: { userId, active: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.habitCheckIn.findMany({
+        where: {
+          userId,
+          revertedAt: null,
+          periodStart: { gte: rangeStart, lt: rangeEnd },
+        },
+        orderBy: { periodStart: 'asc' },
+      }),
+      prisma.playerProfile.findUnique({ where: { userId } }).catch(() => null),
+    ]);
 
-    const checkIns = await prisma.habitCheckIn.findMany({
-      where: {
-        userId,
-        revertedAt: null,
-        periodStart: { gte: monthStart, lt: monthEnd },
-        ...(habitId ? { habitId } : {}),
-      },
-    });
+    const filteredHabits = habitId ? habits.filter((h) => h.id === habitId) : habits;
+    const filteredCheckIns = habitId
+      ? checkIns.filter((c) => c.habitId === habitId)
+      : checkIns;
 
-    const daysInMonth = new Date(year, m, 0).getDate();
+    const daysWithAnyCheckIn = new Set(
+      filteredCheckIns.map((c) => toDateKeyInOffset(c.periodStart, offsetHours))
+    );
+
+    const daysInMonth = new Date(Date.UTC(year, m, 0)).getUTCDate();
     const days = [];
     let completedDays = 0;
     let scheduledDays = 0;
@@ -405,24 +442,76 @@ async function getStreakCalendar(req, res, next) {
         days.push({ date: dateStr, status: 'futuro' });
         continue;
       }
-      if (habits.length === 0) {
+
+      if (filteredHabits.length === 0) {
         days.push({ date: dateStr, status: 'sin_habitos' });
         continue;
       }
+
       scheduledDays++;
-      const doneCount = checkIns.filter((c) => toLocalDateStr(new Date(c.periodStart)) === dateStr).length;
-      if (doneCount >= habits.length) {
+      const dayCheckIns = filteredCheckIns.filter(
+        (c) => toDateKeyInOffset(c.periodStart, offsetHours) === dateStr
+      );
+      const uniqueHabitsDone = new Set(dayCheckIns.map((c) => c.habitId)).size;
+
+      if (uniqueHabitsDone >= filteredHabits.length) {
         completedDays++;
         days.push({ date: dateStr, status: 'completo' });
-      } else if (doneCount > 0) {
+      } else if (uniqueHabitsDone > 0) {
         days.push({ date: dateStr, status: 'parcial' });
       } else {
         days.push({ date: dateStr, status: dateStr === todayStr ? 'sin_habitos' : 'fallido' });
       }
     }
 
-    const currentStreak = habits.reduce((max, h) => Math.max(max, h.currentStreak || 0), 0);
-    const bestStreak = habits.reduce((max, h) => Math.max(max, h.bestStreak || 0), 0);
+    let cursor = daysWithAnyCheckIn.has(todayStr)
+      ? todayStr
+      : daysWithAnyCheckIn.has(addDaysToKey(todayStr, -1))
+      ? addDaysToKey(todayStr, -1)
+      : null;
+
+    let currentStreak = 0;
+    while (cursor && daysWithAnyCheckIn.has(cursor)) {
+      currentStreak++;
+      cursor = addDaysToKey(cursor, -1);
+    }
+
+    const sortedDays = Array.from(daysWithAnyCheckIn).sort();
+    let bestStreak = profile?.bestStreak || 0;
+    let run = 0;
+    let prev = null;
+    for (const dayKey of sortedDays) {
+      if (prev && addDaysToKey(prev, 1) === dayKey) {
+        run++;
+      } else {
+        run = 1;
+      }
+      if (run > bestStreak) bestStreak = run;
+      prev = dayKey;
+    }
+
+    const byHabit = habits.map((h) => {
+      const hDays = new Set(
+        checkIns
+          .filter((c) => c.habitId === h.id)
+          .map((c) => toDateKeyInOffset(c.periodStart, offsetHours))
+      );
+      let hCursor = hDays.has(todayStr)
+        ? todayStr
+        : hDays.has(addDaysToKey(todayStr, -1))
+        ? addDaysToKey(todayStr, -1)
+        : null;
+      let hStreak = 0;
+      while (hCursor && hDays.has(hCursor)) {
+        hStreak++;
+        hCursor = addDaysToKey(hCursor, -1);
+      }
+      return {
+        habitId: h.id,
+        name: h.name,
+        streak: hStreak,
+      };
+    });
 
     res.json({
       month,
@@ -432,11 +521,7 @@ async function getStreakCalendar(req, res, next) {
       scheduledDays,
       currentStreak,
       bestStreak,
-      byHabit: habits.map((h) => ({
-        habitId: h.id,
-        name: h.name,
-        streak: h.currentStreak || 0,
-      })),
+      byHabit,
     });
   } catch (err) {
     next(err);
