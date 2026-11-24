@@ -35,10 +35,15 @@ function createApiRouter(deps) {
   router.use("/animo", createMoodModule({ now: deps.now }).router);
 
   // M14 · Economía global (PWA Admin, solo ADMIN)
-  const m14 = createEconomiaModule({ now: deps.now }).routers;
-  router.use("/economia", m14.economia);
-  router.use("/catalogo", m14.catalogo);
-  router.use("/push", m14.push);
+  const m14 = createEconomiaModule({ now: deps.now });
+  router.use("/economia", m14.routers.economia);
+  router.use("/catalogo", m14.routers.catalogo);
+  router.use("/push", m14.routers.push);
+
+  // M04 · Tienda e inventario. Usa la economía del M14 para el rango de precios (RDF054).
+  const m04 = createTiendaModule({ economyService: m14.services });
+  router.use("/tienda", m04.routers.tienda);
+  router.use("/inventario", m04.routers.inventario);
 
   router.use(["/estado", "/health"], createHealthRouter(deps));
 

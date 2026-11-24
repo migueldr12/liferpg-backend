@@ -48,7 +48,11 @@ const DEFAULTS = {
 
 const errorPrisma = (code) => Object.assign(new Error(`Prisma ${code}`), { code });
 const copia = (row) => (row ? structuredClone(row) : row);
-const igual = (a, b) => (a instanceof Date && b instanceof Date ? a.getTime() === b.getTime() : a === b);
+const igual = (a, b) => {
+  // En MongoDB/Prisma, un campo que nunca se escribió se comporta como null.
+  if (a == null || b == null) return a == null && b == null;
+  return a instanceof Date && b instanceof Date ? a.getTime() === b.getTime() : a === b;
+};
 const esFiltro = (c) => c && typeof c === 'object' && !(c instanceof Date) && !Array.isArray(c);
 const OPERADORES = ['equals', 'mode', 'in', 'not', 'gt', 'gte', 'lt', 'lte'];
 
@@ -92,7 +96,9 @@ const elegir = (row, select) => (row && select ? Object.fromEntries(Object.keys(
 
 const aplicar = (row, data) => {
   for (const [key, value] of Object.entries(data)) {
-    row[key] = value && typeof value === 'object' && 'increment' in value ? row[key] + value.increment : value;
+    if (value && typeof value === 'object' && 'increment' in value) row[key] = row[key] + value.increment;
+    else if (value && typeof value === 'object' && 'decrement' in value) row[key] = row[key] - value.decrement;
+    else row[key] = value;
   }
   row.updatedAt = new Date();
 };
