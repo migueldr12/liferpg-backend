@@ -2,6 +2,7 @@ const express = require("express");
 const { env } = require("./config/env");
 const { createApiRouter } = require("./routes");
 const { cors } = require("./shared/middlewares/cors");
+const { requestLogger } = require("./shared/middlewares/requestLogger");
 const { notFoundHandler } = require("./shared/middlewares/notFound");
 const { errorHandler } = require("./shared/middlewares/errorHandler");
 const { getPrisma } = require("./shared/infrastructure/database/prisma");
@@ -11,15 +12,17 @@ const { getPrisma } = require("./shared/infrastructure/database/prisma");
 function createApp({
   pingDatabase = () => getPrisma().$runCommandRaw({ ping: 1 }),
   missionRepository,
+  achievementRepository,
   now,
 } = {}) {
   const app = express();
 
   app.disable("x-powered-by");
+  app.use(requestLogger);
   app.use(cors(env.corsOrigins));
   app.use(express.json({ limit: "1mb" }));
 
-  app.use("/api/v1", createApiRouter({ pingDatabase, missionRepository, now }));
+  app.use("/api/v1", createApiRouter({ pingDatabase, missionRepository, achievementRepository, now }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

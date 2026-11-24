@@ -20,7 +20,7 @@ function createEnviarSticker({ stickers, friends, push }) {
     const rows = await stickers.createMany({ senderId, recipientIds, catalogItemId, message });
 
     await push.notifyUsers(recipientIds, {
-      title: `${senderName} te envió ${item.icon}`,
+      title: `${senderName} te envió “${item.name}”`,
       body: message || item.name,
       data: { type: 'STICKER', senderId, catalogItemId },
     });
