@@ -1,11 +1,12 @@
 const { badRequest, notFound } = require('../../../../shared/errors/AppError');
-const { POINT_TO_DB, SLOT_FROM_DB } = require('../mappers/tiendaMapper');
+const { POINT_TO_DB, SLOT_FROM_DB, assetOf } = require('../mappers/tiendaMapper');
 
 // Acceso a MongoDB para el M04 (tienda e inventario). Los servicios no conocen
 // Prisma: piden estas operaciones y las pruebas pueden sustituirlas.
 //
 // El catálogo vive en catalog_items (compartido con el M14):
-// - custom = false  → artículos de la tienda para todos.
+// - group = "tienda" → artículos de la tienda para todos (el catálogo también
+//                      guarda stickers, exclusivos, regalables… que aquí no salen).
 // - custom = true   → recompensa personalizada de un jugador (ownerId).
 // - slot != null    → ropa o fondo (Cabeza, Cara, Cuerpo, Fondo).
 // - consumable      → recompensa que desaparece al canjearla.
@@ -27,8 +28,17 @@ const SLOT_PROFILE_FIELD = {
 
 const isObjectId = (id) => OBJECT_ID.test(id ?? '');
 
+// En MongoDB, `consumedAt: null` no encuentra los documentos donde el campo ni
+// siquiera existe (así los crea Prisma). Por eso se filtra aquí y no en la consulta.
+const notConsumed = (entry) => !entry.consumedAt;
+
+const SHOP_GROUP = 'tienda';
+
 const visibleToUser = (userId) => ({
-  OR: [{ custom: { not: true } }, { ownerId: userId, custom: true }],
+  OR: [
+    { group: SHOP_GROUP, custom: { not: true } },
+    { ownerId: userId, custom: true },
+  ],
 });
 
 class PrismaTiendaRepository {
@@ -120,18 +130,19 @@ class PrismaTiendaRepository {
   // funcione igual con el cliente falso de las pruebas).
   async listInventory(userId) {
     const entries = await this.db.inventoryEntry.findMany({
-      where: { userId, consumedAt: null },
+      where: { userId },
       orderBy: { acquiredAt: 'desc' },
     });
-    return this.joinItems(entries);
+    return this.joinItems(entries.filter(notConsumed));
   }
 
   async findInventoryEntry(userId, itemId) {
     if (!isObjectId(itemId)) return null;
+    // Hay una sola existencia por jugador y artículo (@@unique userId + catalogItemId).
     const entry = await this.db.inventoryEntry.findFirst({
-      where: { userId, catalogItemId: itemId, consumedAt: null },
+      where: { userId, catalogItemId: itemId },
     });
-    if (!entry) return null;
+    if (!entry || !notConsumed(entry)) return null;
     const item = await this.db.catalogItem.findUnique({ where: { id: itemId } });
     return item ? { entry, item } : null;
   }
@@ -181,7 +192,7 @@ class PrismaTiendaRepository {
     const slot = item.slot;
     return this.db.$transaction(async (tx) => {
       if (equipped) {
-        const entries = await tx.inventoryEntry.findMany({ where: { userId, consumedAt: null } });
+        const entries = (await tx.inventoryEntry.findMany({ where: { userId } })).filter(notConsumed);
         const ids = [...new Set(entries.map((e) => e.catalogItemId))];
         const items = ids.length
           ? await tx.catalogItem.findMany({ where: { id: { in: ids }, slot } })
@@ -204,7 +215,9 @@ class PrismaTiendaRepository {
         await tx.playerProfile
           .update({
             where: { userId },
-            data: { [profileField]: equipped ? item.slug || item.id : null },
+            // Se guarda el nombre de la imagen (el mismo `asset` que recibe la app)
+            // para que la Casa dibuje la prenda; si no hay, el id.
+            data: { [profileField]: equipped ? assetOf(item) ?? item.id : null },
           })
           .catch(() => null);
       }

@@ -1,5 +1,7 @@
 const { badRequest, notFound } = require('../../../../shared/errors/AppError');
 const {
+  POINT_FROM_DB,
+  DEFAULT_POINT_TYPE,
   pointTypeToDb,
   toShopItemDto,
   toCustomRewardDto,
@@ -81,12 +83,14 @@ function makeComprarArticulo({ repository }) {
 
     const item = await repository.findShopItem(userId, itemId.trim());
     if (!item) throw notFound('El artículo ya no está disponible.');
-    if (!item.pointType) throw badRequest('El artículo no tiene un tipo de puntos configurado.');
     if (!Number.isInteger(item.price) || item.price < 0) {
       throw badRequest('El precio del artículo no es válido.');
     }
 
-    const { profile, entry } = await repository.purchase(userId, item);
+    // El catálogo del M14 todavía no captura el tipo de puntos. Si falta, se cobra
+    // con el mismo tipo que la app muestra en la etiqueta del precio (cultura).
+    const pointType = POINT_FROM_DB[item.pointType] ? item.pointType : DEFAULT_POINT_TYPE;
+    const { profile, entry } = await repository.purchase(userId, { ...item, pointType });
 
     // Ropa y fondos entran al vestidor; el resto, a las recompensas del inventario.
     // El contrato (PurchaseResult) siempre trae `reward`; en ropa, su subtítulo avisa
