@@ -24,6 +24,9 @@ const { createRetosModule } = require("../modules/m12-retos-grupo");
 const { createDiarioModule } = require("../modules/m09-diario-aventura");
 const { createBotinModule } = require("../modules/m08-botin");
 const { createTiendaModule } = require("../modules/m04-tienda");
+const { createNotificationsRouter } = require('../modules/m10-notificaciones/interfaces/routes');
+const { createDataRouter } = require('../modules/m15-gestion-bd/interfaces/routes');
+const { createHostRouter } = require('../modules/m13-sincronizacion-red/interfaces/routes');
 
 // Router raíz de la API, montado en /api/v1.
 // Cada módulo agrega aquí su router desde su propia rama, con el nombre en kebab-case.
@@ -109,6 +112,9 @@ function createApiRouter(deps) {
 
   // M12 · Retos y métricas de grupo (PWA Perfil lite)
   router.use("/retos", createRetosModule({ now: deps.now }).router);
+  router.use('/notificaciones', createNotificationsRouter());
+  router.use('/admin/data', createDataRouter());
+  router.use('/admin/host', createHostRouter());
 
   router.use(["/estado", "/health"], createHealthRouter(deps));
   router.use("/resumen-progreso", createResumenProgresoRouter());

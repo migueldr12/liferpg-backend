@@ -2,7 +2,8 @@ const { Router } = require('express');
 const { env } = require('../../../../config/env');
 const { createRepositories, createNotificationsServices } = require('../../composition');
 const { createPushService } = require('../../../../shared/infrastructure/push/pushService');
-const { createAuthenticate, requireRole } = require('../middlewares/authenticate');
+const { requireUser } = require('../../../../shared/middlewares/requireUser');
+const { requireAdmin } = require('../../../../shared/middlewares/requireAdmin');
 const { createStickersController } = require('../controllers/stickersController');
 const { createInactividadController } = require('../controllers/inactividadController');
 
@@ -21,7 +22,7 @@ function createNotificationsRouter({ repositories = createRepositories(), push =
   const inactividad = createInactividadController({ ...services, defaults: env.inactivity });
 
   const router = Router();
-  router.use(authenticate ?? createAuthenticate({ users: repositories.users }));
+  router.use(authenticate ?? requireUser);
 
   router.get('/stickers/catalogo', stickers.catalogo);
   router.post('/stickers', stickers.enviar);
@@ -30,7 +31,7 @@ function createNotificationsRouter({ repositories = createRepositories(), push =
   router.patch('/stickers/:id/visto', stickers.marcarUno);
 
   router.get('/avisos-inactividad', inactividad.avisos);
-  router.post('/inactividad/ejecutar', requireRole('ADMIN'), inactividad.ejecutar);
+  router.post('/inactividad/ejecutar', requireAdmin(), inactividad.ejecutar);
 
   return router;
 }

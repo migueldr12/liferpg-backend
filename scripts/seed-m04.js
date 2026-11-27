@@ -4,7 +4,7 @@
 //
 // - Crea (o actualiza) los artículos del catálogo cuyo `slug`/`asset` es el nombre de
 //   su imagen en la app: assets/vestidor/{accesorios,fondos}/<slug>.png.
-// - Da al usuario de prueba (dev.yess@liferpg.test) la ropa y el fondo iniciales, unos
+// - Solo con --with-test-user, da al usuario de prueba (dev.yess@liferpg.test) la ropa y el fondo iniciales, unos
 //   consumibles y puntos, para que el escaparate, el inventario y el vestidor tengan qué
 //   mostrar en las pruebas de la API.
 //
@@ -12,6 +12,8 @@
 // configurada en DATABASE_URL: úsalo solo en desarrollo.
 
 const { getPrisma, disconnect } = require('../src/shared/infrastructure/database/prisma');
+const { env } = require('../src/config/env');
+const { databaseUrl } = require('../src/config/database');
 
 const TEST_EMAIL = 'dev.yess@liferpg.test';
 const GROUP = 'tienda';
@@ -95,6 +97,11 @@ async function grant(db, userId, itemId, { equipped = false, source = 'PURCHASE'
 }
 
 async function main() {
+  if (env.nodeEnv === 'production') throw new Error('Los datos de prueba no se pueden cargar en producción.');
+  const withTestUser = process.argv.includes('--with-test-user');
+  if (withTestUser && new URL(databaseUrl()).pathname !== '/liferpg_test') {
+    throw new Error('El usuario de prueba solo se puede modificar en liferpg_test.');
+  }
   const db = getPrisma();
 
   // 1) Catálogo
@@ -103,6 +110,7 @@ async function main() {
     bySlug[item.slug] = await upsertCatalogItem(db, item, index);
   }
   console.log(`Catálogo M04: ${CATALOG.length} artículos (slug = nombre de la imagen).`);
+  if (!withTestUser) return;
 
   // 2) Usuario de prueba
   const user = await db.user.findUnique({ where: { email: TEST_EMAIL } });

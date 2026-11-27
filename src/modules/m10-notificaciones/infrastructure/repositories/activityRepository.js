@@ -6,7 +6,7 @@ function createActivityRepository(getDb = getPrisma) {
     // Jugadores activos con cuenta anterior a la ventana (una cuenta nueva no es "inactiva").
     listCandidates: ({ createdBefore }) =>
       getDb().user.findMany({
-        where: { role: 'PLAYER', status: 'ACTIVE', deletedAt: null, createdAt: { lte: createdBefore } },
+        where: { role: 'PLAYER', status: 'ACTIVE', OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }], createdAt: { lte: createdBefore } },
         select: { id: true, displayName: true },
       }),
 
@@ -14,7 +14,7 @@ function createActivityRepository(getDb = getPrisma) {
     async countActivityByUser({ since }) {
       const db = getDb();
       const [checkIns, missions, focus] = await Promise.all([
-        db.habitCheckIn.findMany({ where: { completedAt: { gte: since }, revertedAt: null }, select: { userId: true } }),
+        db.habitCheckIn.findMany({ where: { completedAt: { gte: since }, OR: [{ revertedAt: null }, { revertedAt: { isSet: false } }] }, select: { userId: true } }),
         db.mission.findMany({ where: { completedAt: { gte: since } }, select: { userId: true } }),
         db.focusSession.findMany({ where: { startedAt: { gte: since }, status: 'COMPLETED' }, select: { userId: true } }),
       ]);
@@ -32,7 +32,7 @@ function createActivityRepository(getDb = getPrisma) {
       const rates = new Map();
       for (const { userId, completionRate } of rows) {
         if (!rates.has(userId)) rates.set(userId, []);
-        rates.get(userId).push(completionRate);
+        rates.get(userId).push(completionRate / 100);
       }
       return rates;
     },

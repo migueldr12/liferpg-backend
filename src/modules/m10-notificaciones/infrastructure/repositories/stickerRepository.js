@@ -12,7 +12,7 @@ const stickerItemWhere = { active: true, category: { is: { type: 'STICKER', acti
 // Filtro del historial. Si hay friendId, solo la conversación con ese amigo.
 function buildHistoryWhere({ userId, direction, friendId, onlyUnseen }) {
   const sent = { senderId: userId, ...(friendId && { recipientId: friendId }) };
-  const received = { recipientId: userId, ...(friendId && { senderId: friendId }), ...(onlyUnseen && { seenAt: null }) };
+  const received = { recipientId: userId, ...(friendId && { senderId: friendId }), ...(onlyUnseen && { OR: [{ seenAt: null }, { seenAt: { isSet: false } }] }) };
   if (direction === 'enviados') return sent;
   if (direction === 'recibidos') return received;
   return { OR: [sent, received] };
@@ -57,7 +57,7 @@ function createStickerRepository(getDb = getPrisma) {
     // Marca como vistos solo los stickers RECIBIDOS por el usuario que aún no lo estaban.
     async markSeen({ userId, ids }) {
       const result = await getDb().stickerMessage.updateMany({
-        where: { recipientId: userId, seenAt: null, ...(ids && { id: { in: ids } }) },
+        where: { recipientId: userId, OR: [{ seenAt: null }, { seenAt: { isSet: false } }], ...(ids && { id: { in: ids } }) },
         data: { seenAt: new Date() },
       });
       return result.count;

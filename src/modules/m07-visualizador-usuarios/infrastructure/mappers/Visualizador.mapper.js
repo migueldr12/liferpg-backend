@@ -3,19 +3,19 @@ const { FriendCodeEntity } = require('../../domain/entities/FriendCode.entity');
 const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function formatRelativeActivity(dateValue) {
-  if (!dateValue) return 'ayer';
+  if (!dateValue) return 'Sin fecha de actualización';
   const diffMs = Date.now() - new Date(dateValue).getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 15) return 'en línea';
+  if (diffMin < 15) return 'Actualizado recientemente';
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `hace ${diffHours} h`;
+  if (diffHours < 24) return `Actualizado hace ${diffHours} h`;
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return 'ayer';
-  return `hace ${diffDays} días`;
+  if (diffDays === 1) return 'Actualizado ayer';
+  return `Actualizado hace ${diffDays} días`;
 }
 
 function formatMonthYear(dateValue) {
-  if (!dateValue) return 'ago 2026';
+  if (!dateValue) return null;
   const d = new Date(dateValue);
   return `${MONTHS_ES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
@@ -39,7 +39,7 @@ function formatVigencia(entity, status) {
 class VisualizadorMapper {
   static toPartyMember(userDoc, friendshipDoc) {
     const profile = userDoc.profile || {};
-    const ultimaActividadAt = profile.updatedAt || friendshipDoc.acceptedAt || userDoc.createdAt;
+    const ultimaActividadAt = profile.updatedAt || null;
     const rawAlias = profile.alias || userDoc.displayName || 'aventurero';
 
     return {
@@ -68,7 +68,6 @@ class VisualizadorMapper {
 
     const level = profile.level ?? 1;
     const xp = profile.xp ?? 0;
-    const nextLevelXp = Math.round(100 * Math.pow(level, 1.07));
     const rawAlias = profile.alias || userDoc.displayName || 'aventurero';
 
     const equippedObj = activeOutfit?.equipped || {};
@@ -81,17 +80,14 @@ class VisualizadorMapper {
       nombre: userDoc.displayName || rawAlias,
       alias: rawAlias.startsWith('@') ? rawAlias : `@${rawAlias}`,
       mascota: {
-        nombre: profile.mascotName || 'Chispa',
+        nombre: profile.mascotName || null,
         especie: profile.species || 'DRAGON',
-        color: profile.mascotColor || 'rojo',
+        color: profile.mascotColor || null,
         avatarUrl: profile.avatarUrl || null,
       },
-      amigosDesde: formatMonthYear(friendshipDoc?.acceptedAt || userDoc.createdAt),
+      amigosDesde: formatMonthYear(friendshipDoc?.acceptedAt),
       nivel: level,
-      siguienteNivel: level + 1,
       xp,
-      nextLevelXp,
-      xpPorcentaje: nextLevelXp > 0 ? Math.min(100, Math.round((xp / nextLevelXp) * 100)) : 0,
       estadisticas: {
         cultura: profile.culturePoints ?? 0,
         fisico: profile.physicalPoints ?? 0,

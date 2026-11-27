@@ -22,6 +22,7 @@ const env = {
   devUserId: process.env.DEV_USER_ID || null,
   // Solo para demos: permite terminar una sesión de enfoque antes de tiempo (M03)
   allowEarlyFinish: nodeEnv !== 'production' && process.env.ALLOW_EARLY_FINISH === 'true',
+  inactivity: { thresholdDays: 3, lowCompletionRate: 0.5 },
 };
 
 module.exports = { env };

@@ -9,6 +9,7 @@ const OBJECT_ID = /^[0-9a-f]{24}$/i;
 // (los módulos solo leen req.user.id). En desarrollo acepta el encabezado X-User-Id
 // para probar con curl/Postman; en producción nunca lo acepta.
 function requireUser(req, res, next) {
+  if (req.authError) return next(req.authError);
   if (req.user?.id) return next();
   if (env.nodeEnv !== 'production') {
     const id = req.get('x-user-id');

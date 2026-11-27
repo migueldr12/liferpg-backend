@@ -12,12 +12,18 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:check": "node scripts/check-database.js",
+    "db:prepare-test": "node scripts/prepare-test-db.js",
     "db:admin-prueba": "node scripts/admin-prueba.js",
     "db:usuario-prueba": "node scripts/usuario-prueba.js",
     "db:seed-m04": "node scripts/seed-m04.js",
+    "db:seed-test-m04": "node scripts/run-test-seed.js m04",
+    "db:seed-test-m10": "node scripts/run-test-seed.js m10",
+    "db:seed-demo": "node scripts/run-test-seed.js demo",
+    "start:demo": "node scripts/start-demo.js",
+    "verify:demo": "node scripts/verify-demo.js",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test"
+    "test": "node scripts/run-tests.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

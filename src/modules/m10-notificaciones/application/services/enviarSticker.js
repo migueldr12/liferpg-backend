@@ -2,7 +2,7 @@ const { AppError, notFound, validationError } = require('../../../../shared/erro
 const { toStickerView } = require('../../infrastructure/mappers/m10Mappers');
 
 // RDF108 · Envía un sticker a uno o varios amigos y les avisa por push.
-function createEnviarSticker({ stickers, friends, push }) {
+function createEnviarSticker({ stickers, friends, push, users }) {
   return async ({ senderId, senderName, recipientIds, catalogItemId, message }) => {
     if (recipientIds.includes(senderId)) {
       throw validationError({ recipientIds: 'No puedes enviarte un sticker a ti mismo.' });
@@ -17,10 +17,10 @@ function createEnviarSticker({ stickers, friends, push }) {
       throw new AppError(403, 'FORBIDDEN', 'Solo puedes enviar stickers a tus amigos.', { recipientIds: strangers });
     }
 
+    const sender = senderName ? null : await users.findAuthUser(senderId);
     const rows = await stickers.createMany({ senderId, recipientIds, catalogItemId, message });
-
     await push.notifyUsers(recipientIds, {
-      title: `${senderName} te envió “${item.name}”`,
+      title: `${senderName || sender?.displayName || 'Un amigo'} te envió “${item.name}”`,
       body: message || item.name,
       data: { type: 'STICKER', senderId, catalogItemId },
     });

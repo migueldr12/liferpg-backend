@@ -6,6 +6,8 @@
 //
 // Escribe en la base configurada en DATABASE_URL: úsalo solo en desarrollo.
 const { getPrisma, disconnect } = require('../src/shared/infrastructure/database/prisma');
+const { env } = require('../src/config/env');
+const { databaseUrl } = require('../src/config/database');
 
 const oid = (n) => `65000000000000000000${String(n).padStart(4, '0')}`;
 const DAY = 24 * 60 * 60 * 1000;
@@ -45,6 +47,8 @@ const FRIENDSHIPS = [
 const upsert = (model, id, data) => model.upsert({ where: { id }, create: { id, ...data }, update: data });
 
 async function main() {
+  if (env.nodeEnv === 'production') throw new Error('Los datos de prueba no se pueden cargar en producción.');
+  if (new URL(databaseUrl()).pathname !== '/liferpg_test') throw new Error('El seed M10 solo puede ejecutarse en liferpg_test.');
   const db = getPrisma();
 
   if (process.argv.includes('--clean')) {

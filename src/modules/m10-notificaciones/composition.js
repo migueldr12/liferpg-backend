@@ -26,12 +26,12 @@ function createRepositories() {
 
 // Arma los servicios de M10. Las pruebas pasan repositorios y push falsos.
 function createNotificationsServices({ repositories = createRepositories(), push = createPushService() } = {}) {
-  const { friends, stickers, alerts, activity } = repositories;
+  const { users, friends, stickers, alerts, activity } = repositories;
   const detect = createDetectarInactividad({ activity, alerts });
   const notify = createNotificarInactividad({ friends, push });
   return {
     consultarCatalogo: createConsultarCatalogoStickers({ stickers }),
-    enviar: createEnviarSticker({ stickers, friends, push }),
+    enviar: createEnviarSticker({ stickers, friends, push, users }),
     consultarHistorial: createConsultarHistorialStickers({ stickers }),
     marcarVisto: createMarcarStickerVisto({ stickers }),
     consultarAvisos: createConsultarAvisosInactividad({ alerts, friends }),

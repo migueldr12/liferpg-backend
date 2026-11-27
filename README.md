@@ -1,7 +1,7 @@
 # Life-RPG · Backend
 
 API REST en Node.js con Express. Arquitectura **por módulos** con **arquitectura limpia**.
-La persistencia usa Prisma 6 con MongoDB Atlas. El esquema ya cubre los modelos de M00–M15; el frontend todavía usa datos de demostración. Consulta [docs/database.md](docs/database.md) para el mapa de colecciones, las reglas de integridad y la política de fechas UTC.
+La persistencia usa Prisma 6 con MongoDB Atlas. El esquema cubre los modelos de M00–M15; consulta el README del frontend para el estado de cada pantalla. Consulta [docs/database.md](docs/database.md) para el mapa de colecciones, las reglas de integridad y la política de fechas UTC.
 
 ## Capas de cada módulo
 
@@ -50,6 +50,8 @@ Las dependencias apuntan hacia adentro: `interfaces → application → domain �
 
 ## Configuración
 
+Para una demostración local con datos ficticios y la PWA, consulta [docs/demo.md](docs/demo.md).
+
 ```bash
 npm install -g pnpm
 cp .env.example .env
@@ -61,9 +63,25 @@ pnpm db:check
 
 Antes de validar, configura `DATABASE_URL` en el entorno o en `.env`. Para desarrollo también se admite `MONGODB_URI` en `atlas-credentials.env`, dentro de este backend. Si la URI no especifica una base, se usa `liferpg`. Ambos archivos locales están excluidos de Git. Atlas requiere acceso desde la IP del servidor.
 
+`db:seed-m04` carga solo el catálogo de prueba; ya no modifica usuarios. Para cargar usuarios e inventario de prueba, `db:seed-test-m04` y `db:seed-test-m10` se dirigen exclusivamente a `liferpg_test`. Los scripts rechazan la escritura de datos de usuarios de prueba en otras bases y están bloqueados cuando `NODE_ENV=production`.
+
+`pnpm db:prepare-test` aplica el esquema y los índices a la base `liferpg_test` del clúster configurado. Se puede indicar otro clúster con `TEST_DATABASE_URL`, pero la base debe llamarse `liferpg_test`. Este comando no cambia el destino normal de la aplicación y no carga usuarios ni datos de ejemplo.
+
+`pnpm test` usa un entorno de pruebas sin `DEV_USER_ID`. Las pruebas que escriben en MongoDB (M10 y M15) solo se ejecutan al definir `RUN_MONGO_INTEGRATION=1` en la terminal antes del comando y requieren acceso a `liferpg_test`.
+
+La exportación administrativa `POST /admin/data/exports` genera JSON de perfiles y no incluye contraseñas ni credenciales; no es un respaldo completo ni restaurable. La purga de la PWA sigue siendo simulada. Para un respaldo restaurable falta configurar MongoDB Database Tools, almacenamiento y un procedimiento de restauración probado.
+
+M13 ofrece `GET /admin/host/clients` para dispositivos registrados de notificaciones y `GET /admin/host/logs` para las últimas 200 peticiones del proceso. Ambos requieren administrador. El registro es temporal, no comparte eventos entre instancias y oculta parámetros e identificadores. Las sesiones Firebase no se registran como sesiones individuales en MongoDB, por lo que estos dispositivos no indican presencia en tiempo real ni pueden revocarse individualmente desde M13. La revisión de inactividad de M10 se puede ejecutar manualmente desde el monitor de host con una vista previa; no hay un job automático configurado.
+
 `db:check` verifica conexión, colecciones e índices esperados sin modificar datos. Para inicializar una base o aplicar cambios de colecciones e índices, revisa el destino y ejecuta `pnpm db:push`. MongoDB no usa Prisma Migrate: si cambias el formato de documentos existentes, planifica su actualización por separado.
 
 Todas las fechas se almacenan en UTC. El cliente calcula el día local; los campos `dayStart` representan la medianoche UTC del registro.
+
+### Conectar la PWA desplegada
+
+- En el backend configura `NODE_ENV=production`, `DATABASE_URL`, `FIREBASE_PROJECT_ID` y `CORS_ORIGINS` con el origen de la PWA. Despliega con `pnpm start`, comprueba `/api/v1/estado` y verifica que la base ya tenga las colecciones e índices esperados.
+- En la PWA configura `VITE_API_URL` con la URL de la API terminada en `/api/v1` y usa el mismo proyecto de Firebase. Las pantallas administrativas requieren iniciar sesión con una cuenta cuyo usuario en MongoDB tenga rol `ADMIN`.
+- Para recibir push reales se necesitan `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` y dispositivos activos con tokens válidos. El inicio de sesión de Firebase no registra esos dispositivos; si el cliente aún no los registra, queda pendiente integrar el registro y la renovación de tokens. M10 también requiere un catálogo activo de stickers para habilitar el envío.
 
 ## Servidor
 
