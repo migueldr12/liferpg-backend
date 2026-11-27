@@ -38,3 +38,28 @@ describe('currentUser (temporal hasta el M00)', () => {
     assert.equal(error.status, 401);
   });
 });
+
+// La misma regla para los controladores que no montan el middleware (M02 · hábitos).
+describe('userIdFromRequest', () => {
+  const { userIdFromRequest } = require('../../src/shared/middlewares/currentUser');
+  const reqWith = (headers = {}, extra = {}) => ({ headers, ...extra });
+
+  test('con sesión de Firebase manda el usuario de la sesión', () => {
+    assert.equal(userIdFromRequest(reqWith({ 'x-user-id': OTHER }, { user: { id: 'sesion' } }), { allowDevHeader: true, devUserId: DEV }), 'sesion');
+  });
+
+  test('un token inválido responde 401 aunque haya encabezado', () => {
+    const authError = Object.assign(new Error('La sesión no es válida.'), { status: 401 });
+    assert.throws(() => userIdFromRequest(reqWith({ 'x-user-id': OTHER }, { authError }), { allowDevHeader: true, devUserId: DEV }), { status: 401 });
+  });
+
+  test('en desarrollo acepta x-user-id (también sin req.get) y "u-1"', () => {
+    assert.equal(userIdFromRequest(reqWith({ 'x-user-id': OTHER }), { allowDevHeader: true, devUserId: DEV }), OTHER);
+    assert.equal(userIdFromRequest(reqWith({ 'x-user-id': 'u-1' }), { allowDevHeader: true, devUserId: DEV }), DEV);
+  });
+
+  test('en producción, sin token, 401 (ya no cae en el usuario de prueba)', () => {
+    assert.throws(() => userIdFromRequest(reqWith({ 'x-user-id': 'u-1' }), { allowDevHeader: false, devUserId: DEV }), { status: 401 });
+    assert.throws(() => userIdFromRequest(reqWith(), { allowDevHeader: false, devUserId: DEV }), { status: 401 });
+  });
+});

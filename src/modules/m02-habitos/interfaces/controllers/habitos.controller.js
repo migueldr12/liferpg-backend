@@ -1,20 +1,19 @@
 const { getPrisma } = require('../../../../shared/infrastructure/database/prisma');
 const { AppError } = require('../../../../shared/errors/AppError');
+const { userIdFromRequest } = require('../../../../shared/middlewares/currentUser');
+const { env } = require('../../../../config/env');
 
 const DEFAULT_USER_ID = '6b0356a060aaa347e384ceb7';
 
+// Misma regla que el resto del backend (shared/middlewares/currentUser.js): con login, el
+// usuario de la sesión; sin token, solo fuera de producción, x-user-id o el usuario de prueba.
+// Antes, en producción y sin login, caía en el usuario de prueba o en el primero de la base.
+// `prisma` se queda en la firma para no tocar a quien la llama.
 async function resolveUserId(prisma, req) {
-  if (req.authError) throw req.authError;
-  if (req.user?.id) return req.user.id;
-  const headerId = req.headers['x-user-id'];
-  if (headerId) {
-    const found = await prisma.user.findUnique({ where: { id: headerId } }).catch(() => null);
-    if (found) return found.id;
-  }
-  const defaultUser = await prisma.user.findUnique({ where: { id: DEFAULT_USER_ID } }).catch(() => null);
-  if (defaultUser) return defaultUser.id;
-  const firstUser = await prisma.user.findFirst().catch(() => null);
-  return firstUser ? firstUser.id : DEFAULT_USER_ID;
+  return userIdFromRequest(req, {
+    allowDevHeader: env.allowDevAuth,
+    devUserId: env.devUserId || DEFAULT_USER_ID,
+  });
 }
 
 const REWARD_MAP = {
