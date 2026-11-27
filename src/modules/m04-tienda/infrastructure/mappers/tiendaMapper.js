@@ -35,6 +35,9 @@ const toShopItemDto = (item) => ({
   // Nombre de la imagen en assets/vestidor; null = la app usa el id y, si tampoco
   // existe, muestra el ícono de siempre.
   asset: assetOf(item),
+  // Parte del cuerpo si es ropa o fondo ("Cabeza", "Cara", "Cuerpo", "Fondo"); null si no.
+  // La app la usa para saber qué artículos necesitan dibujo para poder venderse.
+  category: slotFromDb(item.slot),
 });
 
 // GET /tienda/recompensas/:id (para editarla)

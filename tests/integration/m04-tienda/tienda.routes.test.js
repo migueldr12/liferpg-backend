@@ -157,10 +157,14 @@ test('4.1 · GET /tienda/articulos trae el asset de fondos y accesorios', async 
     pointType: 'cultura',
     isCustom: false,
     asset: 'boina-lector',
+    category: 'Cabeza',
   });
   // Los artículos sin asset caen al slug/id: la app lo usa como nombre de imagen y,
   // si no existe en itemAssets, muestra el ícono de siempre.
   assert.equal(res.body.find((i) => i.id === ids['libro-nuevo']).asset, 'libro-nuevo');
+  // Solo la ropa y los fondos traen parte del cuerpo; lo demás, null.
+  assert.equal(res.body.find((i) => i.id === ids['libro-nuevo']).category, null);
+  assert.equal(res.body.find((i) => i.id === ids['fondo-bosque-mistico']).category, 'Fondo');
   assert.equal(res.body.find((i) => i.id === ids['fondo-bosque-mistico']).asset, 'fondo-bosque-mistico');
 });
 
