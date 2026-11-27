@@ -1,5 +1,5 @@
 const { badRequest, notFound } = require('../../../../shared/errors/AppError');
-const { POINT_TO_DB, SLOT_FROM_DB, assetOf } = require('../mappers/tiendaMapper');
+const { POINT_TO_DB, SLOT_FROM_DB, itemKey } = require('../mappers/tiendaMapper');
 
 // Acceso a MongoDB para el M04 (tienda e inventario). Los servicios no conocen
 // Prisma: piden estas operaciones y las pruebas pueden sustituirlas.
@@ -217,7 +217,7 @@ class PrismaTiendaRepository {
             where: { userId },
             // Se guarda el nombre de la imagen (el mismo `asset` que recibe la app)
             // para que la Casa dibuje la prenda; si no hay, el id.
-            data: { [profileField]: equipped ? assetOf(item) ?? item.id : null },
+            data: { [profileField]: equipped ? itemKey(item) : null },
           })
           .catch(() => null);
       }

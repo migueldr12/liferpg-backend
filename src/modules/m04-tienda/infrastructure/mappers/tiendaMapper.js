@@ -21,39 +21,8 @@ const isConsumableItem = (item) =>
 
 const isClothingItem = (item) => Boolean(item?.slot);
 
-// Íconos que dibuja la app móvil (PixelIcon en src/components/ui/PixelIcons.tsx).
-const APP_ICONS = new Set([
-  'home', 'check', 'flag', 'shop', 'trophy', 'book-open', 'dumbbell', 'focus', 'add', 'star',
-  'streak', 'arrow-left', 'arrow-right', 'arrow-up', 'arrow-down', 'chevron-left', 'chevron-right',
-  'chevron-up', 'chevron-down', 'close', 'menu', 'search', 'settings', 'user', 'bell', 'heart',
-  'lock', 'trash', 'edit', 'minus', 'more', 'info', 'calendar', 'moon', 'clothes', 'bag',
-]);
-
-// El catálogo del M14 guarda los íconos de la PWA ("item.pocion-hp"). La app solo
-// conoce los suyos, así que se elige el más parecido por palabra clave.
-const ICON_BY_KEYWORD = [
-  [/pocion|vida|hp\b/i, 'heart'],
-  [/libro|lector|lectura/i, 'book-open'],
-  [/racha/i, 'streak'],
-  [/escudo/i, 'lock'],
-  [/xp|estrella/i, 'star'],
-  [/pesa|mancuerna|deporte/i, 'dumbbell'],
-];
-
-const iconOf = (item) => {
-  const icon = item?.icon;
-  if (APP_ICONS.has(icon)) return icon;
-  // Ropa y fondos: la app pinta encima la imagen del vestidor (asset) si la tiene.
-  if (item?.slot) return 'clothes';
-  const text = `${icon ?? ''} ${item?.name ?? ''}`;
-  const match = ICON_BY_KEYWORD.find(([pattern]) => pattern.test(text));
-  return match ? match[1] : 'star';
-};
-
-// Nombre de la imagen en assets/vestidor del móvil. Si el catálogo no trae asset ni
-// slug, se toma del ícono de la PWA ("item.bufanda-roja" → "bufanda-roja").
-const assetOf = (item) =>
-  item?.asset ?? item?.slug ?? (item?.icon?.startsWith('item.') ? item.icon.slice(5) : null);
+// Ícono de la app y nombre de la imagen: reglas compartidas con el Vestidor (M01).
+const { assetOf, itemKey, appIconOf: iconOf } = require('../../../../shared/domain/catalogItem');
 
 // GET /tienda/articulos
 const toShopItemDto = (item) => ({
@@ -125,6 +94,7 @@ module.exports = {
   pointTypeToDb,
   slotFromDb,
   assetOf,
+  itemKey,
   isConsumableItem,
   isClothingItem,
   toShopItemDto,

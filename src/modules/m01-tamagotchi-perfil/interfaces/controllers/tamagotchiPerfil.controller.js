@@ -1,13 +1,23 @@
 const { getPrisma } = require('../../../../shared/infrastructure/database/prisma');
-const { AppError } = require('../../../../shared/errors/AppError');
+const { AppError, badRequest, unauthorized } = require('../../../../shared/errors/AppError');
+const { env } = require('../../../../config/env');
+const Vestidor = require('../../domain/entities/Vestidor');
 
 const DEFAULT_USER_ID = '6b0356a060aaa347e384ceb7';
+const OBJECT_ID = /^[a-f0-9]{24}$/i;
 
+// Igual que shared/middlewares/currentUser.js:
+// - con login el usuario viene de la sesión de Firebase (req.user);
+// - sin token, solo fuera de producción: un x-user-id de MongoDB se usa tal cual y
+//   cualquier otro (la app manda "u-1") es el usuario de prueba (DEV_USER_ID).
+// Antes "u-1" no existía en la base y se terminaba usando al primer usuario que hubiera.
 function getUserId(req) {
-  // M00: con login el usuario viene de la sesión de Firebase (req.user)
   if (req.authError) throw req.authError;
   if (req.user?.id) return req.user.id;
-  return req.headers['x-user-id'] || DEFAULT_USER_ID;
+  if (!env.allowDevAuth) throw unauthorized();
+  const header = req.headers['x-user-id'];
+  if (header && OBJECT_ID.test(header)) return header;
+  return env.devUserId && OBJECT_ID.test(env.devUserId) ? env.devUserId : DEFAULT_USER_ID;
 }
 
 function mapSpeciesToEs(species) {
@@ -28,16 +38,6 @@ function mapColorToPrisma(color) {
 function mapSpeciesToPrisma(pet) {
   const map = { gato: 'CAT', perro: 'DOG', dragon: 'DRAGON', hamster: 'HAMSTER', leon: 'LION' };
   return map[pet] || 'CAT';
-}
-
-function mapPointTypeToEs(pt) {
-  const map = { CULTURE: 'cultura', PHYSICAL: 'fisico', FOCUS: 'enfoque' };
-  return map[pt] || 'cultura';
-}
-
-function mapCategoryToEs(cat) {
-  const map = { HEAD: 'Cabeza', FACE: 'Cara', BODY: 'Cuerpo', BACKGROUND: 'Fondo' };
-  return map[cat] || 'Cabeza';
 }
 
 async function ensureUserAndProfile(prisma, userId) {
@@ -301,6 +301,27 @@ async function getTamagotchi(req, res, next) {
   }
 }
 
+// Ropa y fondos del catálogo + inventario del jugador. Se filtra en código (no con
+// `active: true` ni `consumedAt: null`): en MongoDB esos filtros no encuentran los
+// documentos donde el campo no existe.
+async function loadWardrobeData(prisma, userId) {
+  const [catalog, entries] = await Promise.all([
+    prisma.catalogItem.findMany().catch(() => []),
+    prisma.inventoryEntry.findMany({ where: { userId } }).catch(() => []),
+  ]);
+  return { catalog: catalog.filter(Vestidor.isWardrobeItem), entries };
+}
+
+// Marca en el inventario (M04) la prenda puesta en cada parte, igual que el perfil.
+async function applyEntryUpdates(prisma, updates) {
+  for (const { id, equipped } of updates) {
+    await prisma.inventoryEntry.update({ where: { id }, data: { equipped } });
+  }
+}
+
+const lookValues = (o) => ({ head: o?.headSlug, face: o?.faceSlug, body: o?.bodySlug, bg: o?.bgSlug });
+const profileLookValues = (p) => ({ head: p.equippedHeadSlug, face: p.equippedFaceSlug, body: p.equippedBodySlug, bg: p.equippedBgSlug });
+
 // GET /api/v1/vestidor/articulos
 async function getWardrobe(req, res, next) {
   try {
@@ -309,46 +330,8 @@ async function getWardrobe(req, res, next) {
     const user = await ensureUserAndProfile(prisma, userId);
     const p = user.profile;
 
-    const catalogModel = prisma.catalogItem || prisma.storeCatalogItem;
-    const inventoryModel = prisma.inventoryEntry || prisma.inventoryItem;
-
-    // Solo ropa y fondos: los artículos con `slot` (CatalogItem no tiene `kind`).
-    const allItems = catalogModel ? await catalogModel.findMany({ where: { active: true } }) : [];
-    const catalog = allItems.filter((item) => item.slot);
-    const ownedItems = inventoryModel
-      ? await inventoryModel.findMany({ where: { userId: user.id, consumedAt: null } }).catch(() => [])
-      : [];
-
-    // InventoryEntry guarda catalogItemId (no el slug): la propiedad se compara por id de artículo.
-    const ownedIds = new Set(ownedItems.map((i) => String(i.catalogItemId)));
-    const equippedSlugs = new Set(
-      [p.equippedHeadSlug, p.equippedFaceSlug, p.equippedBodySlug, p.equippedBgSlug].filter(Boolean)
-    );
-
-    const items = catalog.map((item) => {
-      const slug = item.slug || item.id;
-      // El fondo por defecto y lo gratuito siempre es del jugador
-      const owned = ownedIds.has(String(item.id)) || ((item.price ?? 0) === 0 && item.slot === 'BACKGROUND');
-      const equipped = equippedSlugs.has(slug);
-      let status = `${item.price ?? 100} pts`;
-      if (equipped) status = 'Equipado';
-      else if (owned) status = 'Tuyo';
-      else if (item.unlockNote) status = item.unlockNote;
-
-      return {
-        id: slug,
-        name: item.name,
-        stat: mapPointTypeToEs(item.pointType),
-        icon: item.icon || 'star',
-        status,
-        equipped,
-        owned,
-        category: mapCategoryToEs(item.slot || item.category),
-        asset: item.asset ?? item.slug ?? null,
-      };
-    });
-
-    res.json(items);
+    const { catalog, entries } = await loadWardrobeData(prisma, user.id);
+    res.json(Vestidor.buildWardrobe({ catalog, entries, profile: p }));
   } catch (err) {
     next(err);
   }
@@ -366,14 +349,10 @@ async function getCurrentLook(req, res, next) {
       where: { userId: user.id, isActive: true },
     }).catch(() => null);
 
+    const { catalog } = await loadWardrobeData(prisma, user.id);
     res.json({
       name: activeOutfit?.name || 'Look casual',
-      slots: {
-        Cabeza: p.equippedHeadSlug || 'Vacío',
-        Cara: p.equippedFaceSlug || 'Vacío',
-        Cuerpo: p.equippedBodySlug || 'Vacío',
-        Fondo: p.equippedBgSlug || 'La Casa',
-      },
+      slots: Vestidor.slotNames({ catalog, values: profileLookValues(p) }),
     });
   } catch (err) {
     next(err);
@@ -391,11 +370,15 @@ async function getSavedLooks(req, res, next) {
       orderBy: { createdAt: 'desc' },
     }).catch(() => []);
 
+    // Los detalles muestran el nombre de cada prenda, no su clave.
+    const { catalog } = await loadWardrobeData(prisma, user.id);
     res.json(
       outfits.map((o) => ({
         id: o.id,
         name: o.name,
-        details: [o.headSlug, o.faceSlug, o.bodySlug, o.bgSlug || 'La Casa'].filter(Boolean).join(' · '),
+        details: Object.values(Vestidor.slotNames({ catalog, values: lookValues(o), empty: null }))
+          .filter(Boolean)
+          .join(' · '),
         color: '#9C27B0',
         inUse: o.isActive,
       }))
@@ -410,22 +393,26 @@ async function saveLook(req, res, next) {
   try {
     const prisma = getPrisma();
     const userId = getUserId(req);
-    const { name } = req.body;
+    // Contrato (docs/API.md): nombre obligatorio, máx. 24 caracteres; si ya existe, se actualiza.
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    if (!name) throw badRequest('Escribe el nombre del look.');
+    if (name.length > 24) throw badRequest('El nombre del look no puede pasar de 24 caracteres.');
+
     const user = await ensureUserAndProfile(prisma, userId);
     const p = user.profile;
+    const slots = {
+      headSlug: p.equippedHeadSlug ?? null,
+      faceSlug: p.equippedFaceSlug ?? null,
+      bodySlug: p.equippedBodySlug ?? null,
+      bgSlug: p.equippedBgSlug ?? null,
+    };
+    // `equipped` (JSON) es obligatorio en el modelo Outfit: sin él Prisma rechazaba el alta.
+    const data = { ...slots, equipped: { head: slots.headSlug, face: slots.faceSlug, body: slots.bodySlug, bg: slots.bgSlug }, isActive: true };
 
     await prisma.outfit.updateMany({ where: { userId: user.id }, data: { isActive: false } });
-    await prisma.outfit.create({
-      data: {
-        userId: user.id,
-        name: name || 'Nuevo look',
-        headSlug: p.equippedHeadSlug,
-        faceSlug: p.equippedFaceSlug,
-        bodySlug: p.equippedBodySlug,
-        bgSlug: p.equippedBgSlug,
-        isActive: true,
-      },
-    });
+    const same = await prisma.outfit.findFirst({ where: { userId: user.id, name } });
+    if (same) await prisma.outfit.update({ where: { id: same.id }, data });
+    else await prisma.outfit.create({ data: { userId: user.id, name, ...data } });
 
     return getSavedLooks(req, res, next);
   } catch (err) {
@@ -448,7 +435,7 @@ async function applySavedLook(req, res, next) {
 
     await prisma.outfit.updateMany({ where: { userId: user.id }, data: { isActive: false } });
     await prisma.outfit.update({ where: { id }, data: { isActive: true } });
-    await prisma.playerProfile.update({
+    const profile = await prisma.playerProfile.update({
       where: { userId: user.id },
       data: {
         equippedHeadSlug: outfit.headSlug,
@@ -457,6 +444,9 @@ async function applySavedLook(req, res, next) {
         equippedBgSlug: outfit.bgSlug,
       },
     });
+    // El inventario de la Tienda queda con las mismas prendas puestas.
+    const { catalog, entries } = await loadWardrobeData(prisma, user.id);
+    await applyEntryUpdates(prisma, Vestidor.syncEntries({ catalog, entries, profile }));
 
     return getSavedLooks(req, res, next);
   } catch (err) {
@@ -470,34 +460,25 @@ async function setEquipped(req, res, next) {
     const prisma = getPrisma();
     const userId = getUserId(req);
     const user = await ensureUserAndProfile(prisma, userId);
-    const { id: slug } = req.params;
-    const { equipped } = req.body;
+    const equipped = req.body?.equipped;
+    if (typeof equipped !== 'boolean') throw badRequest('Indica si la prenda se pone o se quita.');
 
-    const catalogModel = prisma.catalogItem || prisma.storeCatalogItem;
-    const catalogItem = catalogModel
-      ? await catalogModel.findUnique({ where: { slug } }).catch(() => null)
-      : null;
+    // La app manda el `id` de GET /vestidor/articulos: el nombre de la imagen
+    // (también se acepta el id o el slug del catálogo).
+    const { catalog, entries } = await loadWardrobeData(prisma, user.id);
+    const item = Vestidor.findWardrobeItem(catalog, req.params.id);
+    if (!item) throw new AppError(404, 'ITEM_NOT_FOUND', 'Artículo no encontrado');
 
-    if (!catalogItem) {
-      throw new AppError(404, 'ITEM_NOT_FOUND', 'Artículo no encontrado');
-    }
+    const plan = Vestidor.planEquip({ catalog, entries, profile: user.profile, item, equipped });
+    if (plan.error) throw badRequest(plan.error);
 
-    const slotFieldMap = {
-      HEAD: 'equippedHeadSlug',
-      FACE: 'equippedFaceSlug',
-      BODY: 'equippedBodySlug',
-      BACKGROUND: 'equippedBgSlug',
-    };
-    const field = slotFieldMap[catalogItem.slot];
+    const profile = Object.keys(plan.profileData).length
+      ? await prisma.playerProfile.update({ where: { userId: user.id }, data: plan.profileData })
+      : user.profile;
+    await applyEntryUpdates(prisma, plan.entryUpdates);
 
-    if (field) {
-      await prisma.playerProfile.update({
-        where: { userId: user.id },
-        data: { [field]: equipped ? slug : null },
-      });
-    }
-
-    return getWardrobe(req, res, next);
+    const fresh = await prisma.inventoryEntry.findMany({ where: { userId: user.id } }).catch(() => entries);
+    res.json(Vestidor.buildWardrobe({ catalog, entries: fresh, profile }));
   } catch (err) {
     next(err);
   }
