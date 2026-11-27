@@ -78,6 +78,31 @@ const catalogo = [
     pointType: 'FOCUS',
     consumable: true,
   },
+  // Artículo de la tienda que el catálogo del M14 guardó sin tipo de puntos.
+  {
+    name: 'Escudo de racha',
+    group: 'tienda',
+    icon: 'item.escudo-racha',
+    slug: 'escudo-racha',
+    price: 200,
+  },
+  // El catálogo es compartido: estos grupos no son de la tienda.
+  {
+    name: 'Sticker corazón',
+    group: 'stickers',
+    icon: 'sticker.corazon',
+    slug: 'sticker-corazon',
+    price: 0,
+  },
+  {
+    name: 'Corona dorada',
+    group: 'exclusivos',
+    icon: 'item.corona',
+    slug: 'corona-dorada',
+    price: 999,
+    pointType: 'FOCUS',
+    slot: 'HEAD',
+  },
 ];
 
 let ids = {};
@@ -261,4 +286,47 @@ test('4.3 · GET /inventario separa recompensas, consumibles y ropa', async () =
   const ropa = res.body.clothing.map((c) => c.asset).sort();
   assert.deepEqual(ropa, ['boina-lector', 'fondo-bosque-mistico', 'lentes-redondos']);
   assert.ok(res.body.clothing.every((c) => typeof c.equipped === 'boolean'));
+});
+
+test('4.1 · la tienda solo muestra el grupo "tienda" y las recompensas propias', async () => {
+  const ajena = await db.catalogItem.create({
+    data: { name: 'Recompensa ajena', group: 'tienda', icon: 'star', price: 100, pointType: 'CULTURE', custom: true, ownerId: OTRO, active: true },
+  });
+  const propia = await call('POST', '/tienda/recompensas', {
+    icon: 'star', name: 'Tarde libre', description: '', pointType: 'enfoque', price: 100, consumable: false,
+  });
+  assert.equal(propia.status, 201);
+
+  const res = await call('GET', '/tienda/articulos');
+  assert.equal(res.status, 200);
+  const nombres = res.body.map((i) => i.name);
+  assert.ok(nombres.includes('Escudo de racha'));
+  assert.ok(nombres.includes('Tarde libre'));
+  for (const fuera of ['Sticker corazón', 'Corona dorada', 'Recompensa ajena']) {
+    assert.ok(!nombres.includes(fuera), `"${fuera}" no debería estar en la tienda`);
+  }
+
+  // Tampoco se pueden comprar por id aunque alguien lo conozca.
+  for (const id of [ids['sticker-corazon'], ids['corona-dorada'], ajena.id]) {
+    const compra = await call('POST', '/tienda/compras', { itemId: id });
+    assert.deepEqual([compra.status, compra.body.error], [404, 'El artículo ya no está disponible.']);
+  }
+
+  await call('DELETE', `/tienda/recompensas/${propia.body.id}`);
+});
+
+test('4.1 · un artículo sin tipo de puntos se cobra con cultura, como lo muestra la app', async () => {
+  const listado = await call('GET', '/tienda/articulos');
+  const escudo = listado.body.find((i) => i.id === ids['escudo-racha']);
+  // El ícono de la PWA ("item.escudo-racha") se traduce a uno que la app sí dibuja.
+  assert.deepEqual([escudo.pointType, escudo.icon], ['cultura', 'streak']);
+
+  const antes = await db.playerProfile.findUnique({ where: { userId: JUGADOR } });
+  const compra = await call('POST', '/tienda/compras', { itemId: ids['escudo-racha'] });
+  assert.equal(compra.status, 200);
+  assert.deepEqual(compra.body.wallet, {
+    cultura: antes.culturePoints - 200,
+    fisico: antes.physicalPoints,
+    enfoque: antes.focusPoints,
+  });
 });
