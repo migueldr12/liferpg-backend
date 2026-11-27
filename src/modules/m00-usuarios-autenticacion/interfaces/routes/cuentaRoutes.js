@@ -6,6 +6,7 @@ const v = require('../validators/cuentaValidators');
 
 function makeCuentaRouter(c, auth) {
   const router = express.Router();
+  router.get('/me/sesion', auth, c.sesion); // rol y avance del alta; no exige cuenta del juego
   router.get('/me/cuenta', auth, c.ver); // 404 si aún no llena "Crear cuenta"
   router.post('/me/cuenta', auth, v.validarNuevaCuenta, c.crear); // RDF001
   router.put('/me/cuenta', auth, v.validarCambiosCuenta, c.editar); // RDF024, RDF026

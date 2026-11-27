@@ -138,3 +138,9 @@ test('un usuario de prueba que ya tenía perfil sin animal elige mascota sin dup
   assert.equal(db.playerProfile.rows.length, 1);
   assert.equal(db.playerProfile.rows[0].species, 'LION');
 });
+
+test('GET /usuarios/me/sesion: da el rol y qué falta del alta, aun sin cuenta del juego', async () => {
+  const { services } = nuevo();
+  const user = await services.identificarUsuarioFirebase({ uid: 'u-sesion', email: 'sesion@liferpg.mx', emailVerified: true, name: 'Sesión', provider: 'password' });
+  assert.deepEqual(await services.consultarSesion(user.id), { role: 'PLAYER', email: 'sesion@liferpg.mx', displayName: 'Sesión', hasAccount: false, pet: null });
+});

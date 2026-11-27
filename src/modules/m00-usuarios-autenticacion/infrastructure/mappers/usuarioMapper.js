@@ -12,6 +12,7 @@ const toUsuario = (user, profile) => ({
   id: user.id,
   email: user.email,
   displayName: user.displayName,
+  role: user.role ?? 'PLAYER',
   firebaseUid: user.firebaseUid ?? null,
   account: user.account
     ? {
