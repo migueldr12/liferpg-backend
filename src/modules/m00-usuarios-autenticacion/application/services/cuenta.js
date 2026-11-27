@@ -51,6 +51,14 @@ function makeCuentaServices({ usuarioRepository, clock, allowUnverifiedLink = fa
     return usuarioConCuenta(userId);
   }
 
+  // GET /usuarios/me/sesion — qué le falta al usuario para entrar (la PWA decide la pantalla).
+  // Funciona aunque aún no exista la cuenta del juego (por ejemplo, un administrador).
+  async function consultarSesion(userId) {
+    const user = await usuarioRepository.findById(userId);
+    if (!user) throw new NotFoundError('El usuario no existe.');
+    return { role: user.role, email: user.email, displayName: user.displayName, hasAccount: Boolean(user.account), pet: user.pet };
+  }
+
   // RDF001 · agregarUsuario: datos de "Crear cuenta"; la mascota se elige después
   async function crearCuenta(userId, input) {
     const user = await usuarioRepository.findById(userId);
@@ -83,7 +91,7 @@ function makeCuentaServices({ usuarioRepository, clock, allowUnverifiedLink = fa
     });
   }
 
-  return { identificarUsuarioFirebase, consultarCuenta, crearCuenta, actualizarCuenta, elegirMascota };
+  return { identificarUsuarioFirebase, consultarSesion, consultarCuenta, crearCuenta, actualizarCuenta, elegirMascota };
 }
 
 module.exports = { makeCuentaServices, MASCOT_NAMES };

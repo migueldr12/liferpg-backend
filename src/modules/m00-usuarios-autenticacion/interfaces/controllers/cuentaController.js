@@ -5,6 +5,10 @@ const { toAccountDto } = require('../../application/dtos/cuentaDtos');
 
 function makeCuentaController(services) {
   return {
+    sesion: asyncHandler(async (req, res) => {
+      res.json(await services.consultarSesion(req.user.id));
+    }),
+
     ver: asyncHandler(async (req, res) => {
       res.json(toAccountDto(await services.consultarCuenta(req.user.id)));
     }),
