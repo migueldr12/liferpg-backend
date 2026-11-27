@@ -312,21 +312,23 @@ async function getWardrobe(req, res, next) {
     const catalogModel = prisma.catalogItem || prisma.storeCatalogItem;
     const inventoryModel = prisma.inventoryEntry || prisma.inventoryItem;
 
-    const catalog = catalogModel
-      ? await catalogModel.findMany({ where: { kind: 'CLOTHING' } }).catch(() => catalogModel.findMany())
-      : [];
+    // Solo ropa y fondos: los artículos con `slot` (CatalogItem no tiene `kind`).
+    const allItems = catalogModel ? await catalogModel.findMany({ where: { active: true } }) : [];
+    const catalog = allItems.filter((item) => item.slot);
     const ownedItems = inventoryModel
-      ? await inventoryModel.findMany({ where: { userId: user.id } }).catch(() => [])
+      ? await inventoryModel.findMany({ where: { userId: user.id, consumedAt: null } }).catch(() => [])
       : [];
 
-    const ownedSlugs = new Set(ownedItems.map((i) => i.catalogSlug || i.itemSlug || i.slug));
+    // InventoryEntry guarda catalogItemId (no el slug): la propiedad se compara por id de artículo.
+    const ownedIds = new Set(ownedItems.map((i) => String(i.catalogItemId)));
     const equippedSlugs = new Set(
       [p.equippedHeadSlug, p.equippedFaceSlug, p.equippedBodySlug, p.equippedBgSlug].filter(Boolean)
     );
 
     const items = catalog.map((item) => {
       const slug = item.slug || item.id;
-      const owned = ownedSlugs.has(slug);
+      // El fondo por defecto y lo gratuito siempre es del jugador
+      const owned = ownedIds.has(String(item.id)) || ((item.price ?? 0) === 0 && item.slot === 'BACKGROUND');
       const equipped = equippedSlugs.has(slug);
       let status = `${item.price ?? 100} pts`;
       if (equipped) status = 'Equipado';
@@ -342,6 +344,7 @@ async function getWardrobe(req, res, next) {
         equipped,
         owned,
         category: mapCategoryToEs(item.slot || item.category),
+        asset: item.asset ?? item.slug ?? null,
       };
     });
 
